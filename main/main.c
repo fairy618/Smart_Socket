@@ -5,6 +5,7 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 
+#include "BH1750.h"
 
 void app_main(void)
 {
@@ -34,7 +35,8 @@ void app_main(void)
     printf("Minimum free heap size: %ld bytes\n", esp_get_minimum_free_heap_size());
 
     for (int i = 10; i >= 0; i--) {
-        printf("Restarting in %d seconds...\n", i);
+        // printf("Restarting in %d seconds...\n", i);
+        func();
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     printf("Restarting now.\n");
