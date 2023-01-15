@@ -6,9 +6,13 @@
 #include "esp_flash.h"
 
 #include "BH1750.h"
+#include "SHTC3.h"
 
 void app_main(void)
 {
+
+    uint8_t shtc3_id_reg[2] = {0};
+
     printf("Hello world!\n");
 
     /* Print chip information */
@@ -24,7 +28,8 @@ void app_main(void)
     unsigned major_rev = chip_info.revision / 100;
     unsigned minor_rev = chip_info.revision % 100;
     printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-    if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
+    if (esp_flash_get_size(NULL, &flash_size) != ESP_OK)
+    {
         printf("Get flash size failed");
         return;
     }
@@ -34,7 +39,14 @@ void app_main(void)
 
     printf("Minimum free heap size: %ld bytes\n", esp_get_minimum_free_heap_size());
 
-    for (int i = 10; i >= 0; i--) {
+    i2c_master_init();
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    bh1750_read_out_id(shtc3_id_reg);
+    printf("shtc3_id_reg is %x %x\n", shtc3_id_reg[0], shtc3_id_reg[1]);
+
+    for (int i = 10; i >= 0; i--)
+    {
         // printf("Restarting in %d seconds...\n", i);
         func();
         vTaskDelay(1000 / portTICK_PERIOD_MS);
