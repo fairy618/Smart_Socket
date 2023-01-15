@@ -22,12 +22,52 @@ esp_err_t i2c_master_init(void)
     return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
 }
 
-esp_err_t bh1750_read_out_id(uint8_t *data)
+esp_err_t shtc3_read_out_id(uint8_t *id_reg)
 {
-    uint8_t write_buffer[2] = {SHTC3_READ_ID_REGISTER >> 8, SHTC3_READ_ID_REGISTER};
+    uint8_t write_buffer[2] = {SHTC3_READ_ID_REGISTER >> 8, (uint8_t)SHTC3_READ_ID_REGISTER};
     size_t read_size = 2;
 
-    return i2c_master_write_read_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), data, read_size, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    return i2c_master_write_read_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), id_reg, read_size, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+}
+
+esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd)
+{
+    uint8_t write_buffer[2] = {shtc3_cmd >> 8, (uint8_t)shtc3_cmd};
+
+    return i2c_master_write_to_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+}
+
+esp_err_t shtc3_sleep(void)
+{
+    return shtc3_write_cmd(SHTC3_SLEEP_COMMAND);
+}
+
+esp_err_t shtc3_wakeup(void)
+{
+    return shtc3_write_cmd(SHTC3_WAKEUP_COMMAND);
+}
+
+// Normal Mode/ Read RH First/ Clock Stretching Enabled/ 0x5C24
+esp_err_t shtc3_measure_normal_rh_en_clocks(uint8_t *Humidity, uint8_t *Temperature)
+{
+    uint8_t read_buf[6];
+
+    esp_err_t err = ESP_OK;
+
+    err = shtc3_write_cmd(SHTC3_WAKEUP_COMMAND);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+
+    err = shtc3_write_cmd(SHTC3_MEASURE_CMD_4);
+    vTaskDelay(15 / portTICK_PERIOD_MS);
+
+    err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+
+    err = shtc3_write_cmd(SHTC3_SLEEP_COMMAND);
+
+    Humidity = read_buf;
+    Temperature = &read_buf[3];
+
+    return err;
 }
 
 // /**

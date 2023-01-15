@@ -5,13 +5,17 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 
-#include "BH1750.h"
+#include "shtc3.h"
 #include "SHTC3.h"
 
 void app_main(void)
 {
-
     uint8_t shtc3_id_reg[2] = {0};
+    uint8_t Humidity[3];
+    uint8_t Temperature[3];
+    uint16_t hum, temp;
+    float temp_f = 0;
+    float hum_f = 0;
 
     printf("Hello world!\n");
 
@@ -42,16 +46,25 @@ void app_main(void)
     i2c_master_init();
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
-    bh1750_read_out_id(shtc3_id_reg);
-    printf("shtc3_id_reg is %x %x\n", shtc3_id_reg[0], shtc3_id_reg[1]);
+    shtc3_read_out_id(shtc3_id_reg);
+    printf("shtc3_id_reg is %#2x%2x\n", shtc3_id_reg[0], shtc3_id_reg[1]);
 
-    for (int i = 10; i >= 0; i--)
-    {
-        // printf("Restarting in %d seconds...\n", i);
-        func();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
+    shtc3_measure_normal_rh_en_clocks(Humidity, Temperature);
+
+    hum = (Humidity[0] << 8) + Humidity[1];
+    temp = (Temperature[0] << 8) + Temperature[1];
+
+    temp_f = temp / 65536.0f * 175.0f - 45.0f;
+
+    printf("Temperature = %f\n", temp_f);
+
+    // for (int i = 10; i >= 0; i--)
+    // {
+    //     // printf("Restarting in %d seconds...\n", i);
+    //     func();
+    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // }
+    // printf("Restarting now.\n");
+    // fflush(stdout);
+    // esp_restart();
 }
