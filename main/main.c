@@ -5,7 +5,7 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 
-#include "shtc3.h"
+#include "BH1750.h"
 #include "SHTC3.h"
 
 void app_main(void)
@@ -62,9 +62,25 @@ void app_main(void)
         temp_f = temp / 65536.0f * 175.0f - 45.0f;
         hum_f = hum / 65536.0f * 100.0f;
 
-        printf("Temperature = %.2f℃\t", temp_f);
-        printf("Humidity = %.2f%%\n\n", hum_f);
+        printf("Temperature = %.2f℃", temp_f);
+        if (shtc3_crc_check(Humidity, 2, Humidity[2]))
+        {
+            printf("\nHumidity data is error!\n");
+        }
+        else
+        {
+            printf(" ✔\t");
+        }
 
+        printf("Humidity = %.2f%%", hum_f);
+        if (shtc3_crc_check(Temperature, 2, Temperature[2]))
+        {
+            printf("\nTemperature data is error!\n");
+        }
+        else
+        {
+            printf("✔\n");
+        }
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 

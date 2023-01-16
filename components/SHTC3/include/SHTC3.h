@@ -13,7 +13,7 @@
 #define SHTC3_READ_ID_REGISTER 0xEFC8
 #define SHTC3_SLEEP_COMMAND 0xB098
 #define SHTC3_WAKEUP_COMMAND 0x3517
-#define SHTC3_RESET_COMMAND 0x805D
+#define SHTC3_RESET_COMMAND 0x805D /*!< Soft Reset, olny use when shtc3 is idle state */
 #define SHTC3_MEASURE_CMD_1 0x7CA2
 #define SHTC3_MEASURE_CMD_2 0x5C24
 #define SHTC3_MEASURE_CMD_3 0x7866
@@ -29,5 +29,6 @@ esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd);
 esp_err_t shtc3_sleep(void);
 esp_err_t shtc3_wakeup(void);
 esp_err_t shtc3_measure_normal_rh_en_clocks(uint8_t *Humidity, uint8_t *Temperature);
+esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char BytesNbr, unsigned char CheckSum);
 
 #endif /*_DRIVER_SHTC3_H_*/

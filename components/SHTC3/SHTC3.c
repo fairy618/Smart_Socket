@@ -78,6 +78,42 @@ esp_err_t shtc3_measure_normal_rh_en_clocks(uint8_t *Humidity, uint8_t *Temperat
     return err;
 }
 
+esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char BytesNbr, unsigned char CheckSum)
+{
+    unsigned char bit;
+    unsigned char crc = 0xFF;
+    unsigned char byteCtr;
+
+    esp_err_t err;
+
+    for (byteCtr = 0; byteCtr < BytesNbr; byteCtr++)
+    {
+        crc ^= Inputdata[byteCtr];
+        for (bit = 8; bit > 0; --bit)
+        {
+            if (crc & 0x80)
+            {
+                crc = (crc << 1) ^ 0x31;
+            }
+            else
+            {
+                crc = (crc << 1);
+            }
+        }
+    }
+
+    if (crc != CheckSum)
+    {
+        err = ESP_FAIL;
+    }
+    else
+    {
+        err = ESP_OK;
+    }
+
+    return err;
+}
+
 // /**
 //  * @brief Read a sequence of bytes from a MPU9250 sensor registers
 //  */
