@@ -10,7 +10,7 @@
 
 void app_main(void)
 {
-    uint8_t shtc3_id_reg[2] = {0};
+    uint8_t shtc3_id_reg[3] = {0};
     uint8_t Humidity[3];
     uint8_t Temperature[3];
     uint16_t hum, temp;
@@ -46,17 +46,27 @@ void app_main(void)
     i2c_master_init();
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
+    shtc3_wakeup();
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+
     shtc3_read_out_id(shtc3_id_reg);
-    printf("shtc3_id_reg is %#2x%2x\n", shtc3_id_reg[0], shtc3_id_reg[1]);
+    printf("shtc3_id_reg is %#x%x\tCRC is %#x\n", shtc3_id_reg[0], shtc3_id_reg[1], shtc3_id_reg[2]);
 
-    shtc3_measure_normal_rh_en_clocks(Humidity, Temperature);
+    while (1)
+    {
+        shtc3_measure_normal_rh_en_clocks(Humidity, Temperature);
 
-    hum = (Humidity[0] << 8) + Humidity[1];
-    temp = (Temperature[0] << 8) + Temperature[1];
+        hum = (Humidity[0] << 8) + Humidity[1];
+        temp = (Temperature[0] << 8) + Temperature[1];
 
-    temp_f = temp / 65536.0f * 175.0f - 45.0f;
+        temp_f = temp / 65536.0f * 175.0f - 45.0f;
+        hum_f = hum / 65536.0f * 100.0f;
 
-    printf("Temperature = %f\n", temp_f);
+        printf("Temperature = %.2f℃\t", temp_f);
+        printf("Humidity = %.2f%%\n\n", hum_f);
+
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
 
     // for (int i = 10; i >= 0; i--)
     // {

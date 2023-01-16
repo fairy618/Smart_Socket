@@ -24,15 +24,15 @@ esp_err_t i2c_master_init(void)
 
 esp_err_t shtc3_read_out_id(uint8_t *id_reg)
 {
-    uint8_t write_buffer[2] = {SHTC3_READ_ID_REGISTER >> 8, (uint8_t)SHTC3_READ_ID_REGISTER};
-    size_t read_size = 2;
+    uint8_t write_buffer[2] = {(uint8_t)(SHTC3_READ_ID_REGISTER >> 8), (uint8_t)SHTC3_READ_ID_REGISTER};
+    size_t read_size = 3;
 
     return i2c_master_write_read_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), id_reg, read_size, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
 esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd)
 {
-    uint8_t write_buffer[2] = {shtc3_cmd >> 8, (uint8_t)shtc3_cmd};
+    uint8_t write_buffer[2] = {(uint8_t)(shtc3_cmd >> 8), (uint8_t)shtc3_cmd};
 
     return i2c_master_write_to_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
@@ -51,22 +51,30 @@ esp_err_t shtc3_wakeup(void)
 esp_err_t shtc3_measure_normal_rh_en_clocks(uint8_t *Humidity, uint8_t *Temperature)
 {
     uint8_t read_buf[6];
-
+    uint8_t i;
     esp_err_t err = ESP_OK;
 
     err = shtc3_write_cmd(SHTC3_WAKEUP_COMMAND);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     err = shtc3_write_cmd(SHTC3_MEASURE_CMD_4);
-    vTaskDelay(15 / portTICK_PERIOD_MS);
+    vTaskDelay(40 / portTICK_PERIOD_MS);
 
     err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 
     err = shtc3_write_cmd(SHTC3_SLEEP_COMMAND);
 
-    Humidity = read_buf;
-    Temperature = &read_buf[3];
-
+    for (i = 0; i < 6; i++)
+    {
+        if (i < 3)
+        {
+            Humidity[i] = read_buf[i];
+        }
+        else if (i >= 3 && i < 6)
+        {
+            Temperature[i - 3] = read_buf[i];
+        }
+    }
     return err;
 }
 
