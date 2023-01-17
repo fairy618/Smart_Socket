@@ -71,7 +71,7 @@ void app_main(void)
         temp_f = temp / 65536.0f * 175.0f - 45.0f;
         hum_f = hum / 65536.0f * 100.0f;
 
-        printf("Temperature = %.2f℃", temp_f);
+        printf("Temperature = %.2f ℃", temp_f);
         if (shtc3_crc_check(Humidity, 2, Humidity[2]))
         {
             printf("\nHumidity data is error!\n");
@@ -81,7 +81,7 @@ void app_main(void)
             printf(" ✔\t");
         }
 
-        printf("Humidity = %.2f%%", hum_f);
+        printf("Humidity = %.2f %%", hum_f);
         if (shtc3_crc_check(Temperature, 2, Temperature[2]))
         {
             printf("\nTemperature data is error!\n");
@@ -95,7 +95,7 @@ void app_main(void)
         bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
         vTaskDelay(200 / portTICK_PERIOD_MS);
         bh1750_read_data(&light);
-        printf("ligth is %dlx\t", light);
+        printf("ligth = %d lx\t", light);
         vTaskDelay(700 / portTICK_PERIOD_MS);
     }
 
