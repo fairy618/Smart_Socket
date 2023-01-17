@@ -16,6 +16,7 @@ void app_main(void)
     uint16_t hum, temp;
     float temp_f = 0;
     float hum_f = 0;
+    uint16_t light;
 
     printf("Hello world!\n");
 
@@ -52,6 +53,14 @@ void app_main(void)
     shtc3_read_out_id(shtc3_id_reg);
     printf("shtc3_id_reg is %#x%x\tCRC is %#x\n", shtc3_id_reg[0], shtc3_id_reg[1], shtc3_id_reg[2]);
 
+    bh1750_power_cmd(BH1750_INS_POWER_ON);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    bh1750_power_cmd(BH1750_INS_RESET);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+
+    bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+
     while (1)
     {
         shtc3_measure_normal_rh_en_clocks(Humidity, Temperature);
@@ -81,7 +90,13 @@ void app_main(void)
         {
             printf("✔\n");
         }
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        bh1750_read_data(&light);
+        printf("ligth is %dlx\t", light);
+        vTaskDelay(700 / portTICK_PERIOD_MS);
     }
 
     // for (int i = 10; i >= 0; i--)
