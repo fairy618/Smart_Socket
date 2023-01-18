@@ -49,8 +49,7 @@ esp_err_t bh1750_read_data(uint16_t *light_data)
 
     *light_data = (read_buf[0] << 8) | (read_buf[1]);
 
-    // *light_data = (uint16_t)(*light_data / 1.2);
+    *light_data = (uint16_t)(*light_data / 1.2);
 
     return err;
 }
-    
