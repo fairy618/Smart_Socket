@@ -3,6 +3,7 @@
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/gpio.h"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_mac.h"
@@ -22,6 +23,9 @@
 #define EXAMPLE_ESP_WIFI_CHANNEL 6
 #define EXAMPLE_MAX_STA_CONN 4
 
+
+
+
 static const char *TAG = "wifi softAP";
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -36,6 +40,8 @@ void app_main(void)
     float temp_f = 0;
     float hum_f = 0;
     uint16_t light;
+
+    uint32_t io_s = 1;
 
     printf("Hello world!\n");
 
@@ -92,42 +98,48 @@ void app_main(void)
     ESP_LOGI(TAG, "ESP_WIFI_MODE_AP");
     wifi_init_softap();
 
+    gpio_reset_pin(GPIO_NUM_HLW8032_TX);
+
+    gpio_set_direction(GPIO_NUM_HLW8032_TX, GPIO_MODE_OUTPUT);
+
+    gpio_set_level(GPIO_MODE_OUTPUT, io_s);
+
     while (1)
     {
-        shtc3_measure_normal_rh_en_clocks(Humidity, Temperature);
+        // shtc3_measure_normal_rh_en_clocks(Humidity, Temperature);
 
-        hum = (Humidity[0] << 8) + Humidity[1];
-        temp = (Temperature[0] << 8) + Temperature[1];
+        // hum = (Humidity[0] << 8) + Humidity[1];
+        // temp = (Temperature[0] << 8) + Temperature[1];
 
-        temp_f = temp / 65536.0f * 175.0f - 45.0f;
-        hum_f = hum / 65536.0f * 100.0f;
+        // temp_f = temp / 65536.0f * 175.0f - 45.0f;
+        // hum_f = hum / 65536.0f * 100.0f;
 
-        printf("Temperature = %.2f ℃", temp_f);
-        if (shtc3_crc_check(Humidity, 2, Humidity[2]))
-        {
-            printf("\nHumidity data is error!\n");
-        }
-        else
-        {
-            printf(" ✔\t");
-        }
+        // printf("Temperature = %.2f ℃", temp_f);
+        // if (shtc3_crc_check(Humidity, 2, Humidity[2]))
+        // {
+        //     printf("\nHumidity data is error!\n");
+        // }
+        // else
+        // {
+        //     printf(" ✔\t");
+        // }
 
-        printf("Humidity = %.2f %%", hum_f);
-        if (shtc3_crc_check(Temperature, 2, Temperature[2]))
-        {
-            printf("\nTemperature data is error!\n");
-        }
-        else
-        {
-            printf("✔\n");
-        }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        // printf("Humidity = %.2f %%", hum_f);
+        // if (shtc3_crc_check(Temperature, 2, Temperature[2]))
+        // {
+        //     printf("\nTemperature data is error!\n");
+        // }
+        // else
+        // {
+        //     printf("✔\n");
+        // }
+        // vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-        bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-        bh1750_read_data(&light);
-        printf("ligth = %d lm\t", light);
-        vTaskDelay(700 / portTICK_PERIOD_MS);
+        // bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
+        // vTaskDelay(200 / portTICK_PERIOD_MS);
+        // bh1750_read_data(&light);
+        // printf("ligth = %d lm\t", light);
+        // vTaskDelay(700 / portTICK_PERIOD_MS);
     }
 
     // for (int i = 10; i >= 0; i--)

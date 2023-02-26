@@ -1,1 +1,19 @@
-void func(void);
+#ifndef _DRIVER_HLW8032_H_
+#define _DRIVER_HLW8032_H_
+
+#include "driver/gpio.h"
+#include "driver/uart.h"
+
+#define GPIO_NUM_HLW8032_TX (GPIO_NUM_1)
+#define GPIO_NUM_HLW8032_PF (GPIO_NUM_0)
+
+#define BUF_SIZE (1024)
+
+#define HLW8032_UART_BAUD_RATE (4800)
+#define HLW8032_UART_PORT_NUM (UART_NUM_1)
+#define HLW8032_UART_RXD (GPIO_NUM_HLW8032_TX)
+#define HLW8032_UART_TXD (UART_PIN_NO_CHANGE)
+#define HLW8032_UART_RTS (UART_PIN_NO_CHANGE)
+#define HLW8032_UART_CTS (UART_PIN_NO_CHANGE)
+
+#endif /*_DRIVER_HLW8032_H_*/
