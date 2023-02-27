@@ -10,9 +10,16 @@ uint32_t HLW8032_Current;
 uint32_t HLW8032_PowerREGParameter;
 uint32_t HLW8032_Power;
 
-uint64_t HLW8032_pf;
-
 uint8_t HLW8032_CheckSum;
+
+uint16_t voltage_eff_tenfold;     // 电压有效值 十倍放大
+uint32_t current_eff_hundredfold; // 电流有效值 百倍放大
+uint16_t active_power_tenfold;    // 有功功率 十倍放大
+uint16_t apparent_power_tenfold;  // 视在功率 十倍放大
+float power_factor;               // 功率因素
+uint32_t PF_invert_cnt = 0;       // pf 取反次数
+uint32_t HLW8032_pf_reg;          // pf 寄存器的值
+uint64_t electricity_consumption; // 用电量
 
 /*
  * @description:
@@ -123,23 +130,35 @@ void Task_Hlw8032(void *arg)
                 if (hlw8032_uart_data[20] & 0x80)
                 {
                     // pf REG carry flag bit
+                    PF_invert_cnt++;
                 }
                 if (hlw8032_uart_data[20] & 0x40)
                 {
                     // Voltager REG updata
+                    voltage_eff_tenfold = (uint16_t)(HLW8032_VoltageREGParameter * 10.0f * HLW8032_VOLTAGE_COEF / HLW8032_Voltager);
                 }
                 if (hlw8032_uart_data[20] & 0x20)
                 {
                     // Current REG updata
+                    current_eff_hundredfold = (uint32_t)(HLW8032_CurrentREGParameter * 100.0f * HLW8032_CURRENT_COFE / HLW8032_Current);
                 }
                 if (hlw8032_uart_data[20] & 0x10)
                 {
                     // power REG updata
+                    active_power_tenfold = (uint16_t)(HLW8032_PowerREGParameter * 10.0f * HLW8032_VOLTAGE_COEF * HLW8032_CURRENT_COFE / HLW8032_Power);
+                    apparent_power_tenfold = (uint16_t)(voltage_eff_tenfold * current_eff_hundredfold / 100.0f);
+                    power_factor = 1.0f * active_power_tenfold / apparent_power_tenfold;
                 }
 
                 // 2 PF REG
-                HLW8032_pf = (hlw8032_uart_data[21] << 8) | (hlw8032_uart_data[22]);
+                HLW8032_pf_reg = (hlw8032_uart_data[21] << 8) | (hlw8032_uart_data[22]);
             }
+        }
+
+        if (false)
+        {
+            // need debug
+            electricity_consumption = (HLW8032_pf_reg + PF_invert_cnt * 65536) / (3.6 * 10 ^ 12 / HLW8032_PowerREGParameter / HLW8032_VOLTAGE_COEF / HLW8032_CURRENT_COFE);
         }
     }
 }
