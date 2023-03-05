@@ -9,7 +9,7 @@
 
 #include "BH1750.h"
 
-void Task_bh1750(void *arg)
+void Task_bh1750(void *pvParameters)
 {
     bh1750_power_cmd(BH1750_INS_POWER_ON);
     vTaskDelay(100 / portTICK_PERIOD_MS);

@@ -9,7 +9,7 @@
 
 #include "SHTC3.h"
 
-void Task_shtc3(void *arg)
+void Task_shtc3(void *pvParameters)
 {
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;

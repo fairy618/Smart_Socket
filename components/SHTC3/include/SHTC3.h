@@ -34,7 +34,7 @@ typedef struct
     esp_err_t flag_humidity;
 } shtc3_t;
 
-void Task_shtc3(void *arg);
+void Task_shtc3(void *pvParameters);
 esp_err_t i2c_master_init(void);
 esp_err_t shtc3_read_out_id(uint8_t *data);
 esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd);

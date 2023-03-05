@@ -9,7 +9,7 @@
 
 #include "BasicDrive.h"
 
-void Task_key(void *arg)
+void Task_key(void *pvParameters)
 {
 
     while (1)
@@ -18,7 +18,7 @@ void Task_key(void *arg)
     }
 }
 
-void Task_Relay(void *arg)
+void Task_Relay(void *pvParameters)
 {
     // gpio_reset_pin(GPIO_NUM_RELAY_PWM);
     // gpio_set_direction(GPIO_NUM_RELAY_PWM, GPIO_MODE_OUTPUT);
@@ -32,7 +32,7 @@ void Task_Relay(void *arg)
     }
 }
 
-void Task_LED(void *arg)
+void Task_LED(void *pvParameters)
 {
     bool HighWaterMark = 1;
 
@@ -55,7 +55,7 @@ void Task_LED(void *arg)
     }
 }
 
-void Task_WS2812(void *arg)
+void Task_WS2812(void *pvParameters)
 {
     //
     while (1)

@@ -10,8 +10,6 @@
 
 #include "HLW032.h"
 
-static const char *TAG_HLW8032 = "HLW8032";
-
 QueueHandle_t xQueue_HLW8032 = NULL;
 
 uint32_t HLW8032_VoltageREGParameter;
@@ -34,31 +32,149 @@ uint64_t electricity_consumption; // 用电量
 
 /*
  * @description:
- * @param {void} *arg
+ * @param {void} *pvParameters
  * @return {*}
  */
-void Task_Hlw8032(void *arg)
+void Task_Hlw8032(void *pvParameters)
 {
-    uint8_t *hlw8032_uart_data = (uint8_t *)malloc(UART_BUF_SIZE);
-    unsigned char flag_State = 0x00;
-    uint8_t i = 0;
     uart_event_t Event_uart1;
-    BaseType_t Queue_rec;
+    // unsigned char flag_State = 0x00;
+    uint8_t *hlw8032_uart_data = (uint8_t *)malloc(UART_BUF_SIZE);
     bool HighWaterMark = 1;
+
+    size_t buffered_size;
+    // uart_intr_config_t
 
     hlw8032_init();
     ESP_LOGI("Task_Hlw8032", "HLW8032 init finish. ");
 
     while (1)
     {
-        Queue_rec = xQueueReceive(xQueue_HLW8032, (void *)&Event_uart1, portMAX_DELAY);
+        /*
+        int length = 0;
+        ESP_ERROR_CHECK(uart_get_buffered_data_len(HLW8032_UART_PORT_NUM, (size_t*)&length));
 
-        if (Queue_rec == pdPASS)
+        uart_flush(); // clear FIFO
+        */
+        if (xQueueReceive(xQueue_HLW8032, (void *)&Event_uart1, (TickType_t)portMAX_DELAY) == pdPASS)
         {
+            memset(hlw8032_uart_data, 0, UART_BUF_SIZE);
+
+            printf("\n");
+            // ESP_LOGE("UART1 Queue Rec", "Event_uart1.size is %d. ", Event_uart1.size);
+
             switch (Event_uart1.type)
             {
             case UART_DATA:
+                ESP_LOGI("UART1 EVENT", "[UART DATA]: %d. ", Event_uart1.size);
                 int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
+                ESP_LOGI("UART_DATA", "len = %d. ", len);
+                break;
+            case UART_BREAK:
+                ESP_LOGE("UART1 EVENT", "uart rx break");
+                break;
+            case UART_BUFFER_FULL:
+                ESP_LOGE("UART1 EVENT", "ring buffer full");
+                uart_flush_input(HLW8032_UART_PORT_NUM);
+                xQueueReset(xQueue_HLW8032);
+                break;
+            case UART_FIFO_OVF:
+                ESP_LOGE("UART1 EVENT", "hw fifo overflow");
+                uart_flush_input(HLW8032_UART_PORT_NUM);
+                xQueueReset(xQueue_HLW8032);
+                break;
+            case UART_FRAME_ERR:
+                ESP_LOGE("UART1 EVENT", "uart frame error");
+                break;
+            case UART_PARITY_ERR:
+                ESP_LOGE("UART1 EVENT", "uart parity error");
+                break;
+            case UART_DATA_BREAK:
+                ESP_LOGE("UART1 EVENT", "UART_DATA_BREAK");
+                break;
+            case UART_PATTERN_DET:
+                uart_get_buffered_data_len(HLW8032_UART_PORT_NUM, &buffered_size);
+                int pos = uart_pattern_pop_pos(HLW8032_UART_PORT_NUM);
+                ESP_LOGI("UART_PATTERN_DET", "[UART PATTERN DETECTED] pos: %d, buffered size: %d", pos, buffered_size);
+                if (pos == -1)
+                {
+                    // There used to be a UART_PATTERN_DET event, but the pattern position queue is full so that it can not
+                    // record the position. We should set a larger queue size.
+                    // As an example, we directly flush the rx buffer here.
+                    uart_flush_input(HLW8032_UART_PORT_NUM);
+                }
+                else
+                {
+                    uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, pos, 100 / portTICK_PERIOD_MS);
+                    uint8_t pat[3 + 1];
+                    memset(pat, 0, sizeof(pat));
+                    uart_read_bytes(HLW8032_UART_PORT_NUM, pat, 3, 100 / portTICK_PERIOD_MS);
+                    ESP_LOGI("UART_PATTERN_DET", "read data: %s", hlw8032_uart_data);
+                    ESP_LOGI("UART_PATTERN_DET", "read pat : %s", pat);
+                }
+
+                ESP_LOGE("UART1 EVENT", "UART_PATTERN_DET");
+                break;
+            case UART_WAKEUP:
+                ESP_LOGE("UART1 EVENT", "UART_WAKEUP");
+                break;
+            case UART_EVENT_MAX:
+                ESP_LOGE("UART1 EVENT", "UART_EVENT_MAX");
+                break;
+
+            default:
+                break;
+            }
+        }
+        // vTaskDelay(10 / portTICK_PERIOD_MS);
+
+        if (false)
+        {
+            // need debug
+            electricity_consumption = (HLW8032_pf_reg + PF_invert_cnt * 65536) / (3.6 * (10 ^ 12) / HLW8032_PowerREGParameter / HLW8032_VOLTAGE_COEF / HLW8032_CURRENT_COFE);
+        }
+
+        if (HighWaterMark)
+        {
+            HighWaterMark = 0;
+            ESP_LOGI("HLW8032 HighWaterMark", "Stack`s free depth : %d/4096. ", uxTaskGetStackHighWaterMark(NULL));
+        }
+    }
+}
+
+/*
+ * @description:
+ * @return {*}
+ */
+void hlw8032_init(void)
+{
+    gpio_reset_pin(GPIO_NUM_HLW8032_PF);
+    gpio_set_direction(GPIO_NUM_HLW8032_PF, GPIO_MODE_INPUT);
+
+    /* Configure parameters of an UART driver,
+     * communication pins and install the driver */
+    uart_config_t uart_config = {
+        .baud_rate = HLW8032_UART_BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_EVEN,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+    int intr_alloc_flags = 0;
+
+#if CONFIG_UART_ISR_IN_IRAM
+    intr_alloc_flags = ESP_INTR_FLAG_IRAM;
+#endif
+
+    ESP_ERROR_CHECK(uart_driver_install(HLW8032_UART_PORT_NUM, UART_BUF_SIZE * 2, 0, 20, &xQueue_HLW8032, intr_alloc_flags));
+    ESP_ERROR_CHECK(uart_param_config(HLW8032_UART_PORT_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(HLW8032_UART_PORT_NUM, HLW8032_UART_TXD, HLW8032_UART_RXD, HLW8032_UART_RTS, HLW8032_UART_CTS));
+}
+
+/**
+ *
+ * int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
                 if (len)
                 {
                     ESP_LOGI(TAG_HLW8032, "UART[%d] received data.", HLW8032_UART_PORT_NUM);
@@ -150,81 +266,4 @@ void Task_Hlw8032(void *arg)
                 }
                 printf("\n");
                 // memset(hlw8032_uart_data, 0, UART_BUF_SIZE);
-                break;
-
-            case UART_BREAK:
-                ESP_LOGE("UART1 EVENT", "UART_BREAK");
-                break;
-            case UART_BUFFER_FULL:
-                ESP_LOGE("UART1 EVENT", "UART_BUFFER_FULL");
-                break;
-            case UART_FIFO_OVF:
-                ESP_LOGE("UART1 EVENT", "UART_FIFO_OVF");
-                break;
-            case UART_FRAME_ERR:
-                ESP_LOGE("UART1 EVENT", "UART_FRAME_ERR");
-                break;
-            case UART_PARITY_ERR:
-                ESP_LOGE("UART1 EVENT", "UART_PARITY_ERR");
-                break;
-            case UART_DATA_BREAK:
-                ESP_LOGE("UART1 EVENT", "UART_DATA_BREAK");
-                break;
-            case UART_PATTERN_DET:
-                ESP_LOGE("UART1 EVENT", "UART_PATTERN_DET");
-                break;
-            case UART_WAKEUP:
-                ESP_LOGE("UART1 EVENT", "UART_WAKEUP");
-                break;
-            case UART_EVENT_MAX:
-                ESP_LOGE("UART1 EVENT", "UART_EVENT_MAX");
-                break;
-
-            default:
-                break;
-            }
-        }
-        // vTaskDelay(10 / portTICK_PERIOD_MS);
-
-        if (false)
-        {
-            // need debug
-            electricity_consumption = (HLW8032_pf_reg + PF_invert_cnt * 65536) / (3.6 * (10 ^ 12) / HLW8032_PowerREGParameter / HLW8032_VOLTAGE_COEF / HLW8032_CURRENT_COFE);
-        }
-        if (HighWaterMark)
-        {
-            HighWaterMark = 0;
-            ESP_LOGI("HLW8032 HighWaterMark", "Stack`s free depth : %d/2048. ", uxTaskGetStackHighWaterMark(NULL));
-        }
-    }
-}
-
-/*
- * @description:
- * @return {*}
- */
-void hlw8032_init(void)
-{
-    gpio_reset_pin(GPIO_NUM_HLW8032_PF);
-    gpio_set_direction(GPIO_NUM_HLW8032_PF, GPIO_MODE_INPUT);
-
-    /* Configure parameters of an UART driver,
-     * communication pins and install the driver */
-    uart_config_t uart_config = {
-        .baud_rate = HLW8032_UART_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_EVEN,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-    int intr_alloc_flags = 0;
-
-#if CONFIG_UART_ISR_IN_IRAM
-    intr_alloc_flags = ESP_INTR_FLAG_IRAM;
-#endif
-
-    uart_driver_install(HLW8032_UART_PORT_NUM, UART_BUF_SIZE * 2, 0, 20, &xQueue_HLW8032, intr_alloc_flags);
-    uart_param_config(HLW8032_UART_PORT_NUM, &uart_config);
-    uart_set_pin(HLW8032_UART_PORT_NUM, HLW8032_UART_TXD, HLW8032_UART_RXD, HLW8032_UART_RTS, HLW8032_UART_CTS);
-}
+*/

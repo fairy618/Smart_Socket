@@ -17,10 +17,10 @@
 #define LEDC_FREQUENCY (20000)          // Frequency in Hertz. Set frequency at 5 kHz
 #define LEDC_DUTY (767)                 // Set duty to 50%. ((2 ** 10) - 1) * 80% = 818
 
-void Task_key(void *arg);
-void Task_LED(void *arg);
-void Task_Relay(void *arg);
-void Task_WS2812(void *arg);
+void Task_key(void *pvParameters);
+void Task_LED(void *pvParameters);
+void Task_Relay(void *pvParameters);
+void Task_WS2812(void *pvParameters);
 void Relay_ledc_init(void);
 void Relay_ledc_set_duty(uint8_t duty);
 

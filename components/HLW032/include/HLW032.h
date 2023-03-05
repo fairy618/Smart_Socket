@@ -1,10 +1,10 @@
 #ifndef _DRIVER_HLW8032_H_
 #define _DRIVER_HLW8032_H_
 
-#define GPIO_NUM_HLW8032_TX (GPIO_NUM_1)
-#define GPIO_NUM_HLW8032_PF (GPIO_NUM_0)
+#define GPIO_NUM_HLW8032_TX (GPIO_NUM_0)
+#define GPIO_NUM_HLW8032_PF (GPIO_NUM_1)
 
-#define UART_BUF_SIZE (24 * 10)
+#define UART_BUF_SIZE (1024)
 
 #define HLW8032_UART_BAUD_RATE (4800)
 #define HLW8032_UART_PORT_NUM (UART_NUM_1)
@@ -16,7 +16,7 @@
 #define HLW8032_VOLTAGE_COEF (1.88f)
 #define HLW8032_CURRENT_COFE (1)
 
-void Task_Hlw8032(void *arg);
+void Task_Hlw8032(void *pvParameters);
 void hlw8032_init(void);
 
 #endif /*_DRIVER_HLW8032_H_*/
