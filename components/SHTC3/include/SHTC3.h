@@ -1,8 +1,8 @@
 #ifndef _DRIVER_SHTC3_H_
 #define _DRIVER_SHTC3_H_
 
-#define I2C_MASTER_SCL_PIN 19        /*!< GPIO number used for I2C master clock */
-#define I2C_MASTER_SDA_PIN 18        /*!< GPIO number used for I2C master data  */
+#define I2C_MASTER_SCL_PIN 7        /*!< GPIO number used for I2C master clock */
+#define I2C_MASTER_SDA_PIN 6        /*!< GPIO number used for I2C master data  */
 #define I2C_MASTER_NUM 0            /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
 #define I2C_MASTER_FREQ_HZ 400000   /*!< I2C master clock frequency */
 #define I2C_MASTER_TX_BUF_DISABLE 0 /*!< I2C master doesn't need buffer */
@@ -23,12 +23,24 @@
 #define SHTC3_MEASURE_CMD_7 0x609C
 #define SHTC3_MEASURE_CMD_8 0x401A
 
+typedef struct
+{
+    uint8_t row_data[6];
+    uint16_t row_temperature;
+    uint16_t row_humidity;
+    float temperature;
+    uint8_t humidity;
+    esp_err_t flag_temperature;
+    esp_err_t flag_humidity;
+} shtc3_t;
+
+void Task_shtc3(void *arg);
 esp_err_t i2c_master_init(void);
 esp_err_t shtc3_read_out_id(uint8_t *data);
 esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd);
 esp_err_t shtc3_sleep(void);
 esp_err_t shtc3_wakeup(void);
-esp_err_t shtc3_measure_normal_rh_en_clocks(uint8_t *Humidity, uint8_t *Temperature);
-esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char BytesNbr, unsigned char CheckSum);
+esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf);
+esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsigned char CheckSum);
 
 #endif /*_DRIVER_SHTC3_H_*/

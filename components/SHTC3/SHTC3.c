@@ -1,8 +1,62 @@
 #include <stdio.h>
-#include "esp_log.h"
 #include "driver/i2c.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "esp_err.h"
 
 #include "SHTC3.h"
+
+void Task_shtc3(void *arg)
+{
+    uint8_t ID_Register[2];
+    shtc3_t struct_shtc3_data;
+    bool HighWaterMark = 1;
+
+    i2c_master_init();
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+
+    shtc3_wakeup();
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+
+    shtc3_read_out_id(ID_Register);
+    ESP_LOGI("SHTC3 ID", "The ID Reg is 0x%02x%02x ", ID_Register[0], ID_Register[1]);
+
+    shtc3_sleep();
+
+    while (1)
+    {
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+
+        shtc3_measure_normal_rh_dis_clocks(struct_shtc3_data.row_data);
+
+        struct_shtc3_data.flag_humidity = shtc3_crc_check(struct_shtc3_data.row_data, 2, struct_shtc3_data.row_data[2]);
+        struct_shtc3_data.flag_temperature = shtc3_crc_check(struct_shtc3_data.row_data + 3 * sizeof(uint8_t), 2, struct_shtc3_data.row_data[5]);
+
+        if (struct_shtc3_data.flag_humidity != ESP_OK || struct_shtc3_data.flag_temperature != ESP_OK)
+        {
+            ESP_LOGE("SHTC3 CRC CHECK", "There are somgthing wrong whit shtc3");
+            continue;
+        }
+        else
+        {
+            struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
+            struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
+
+            struct_shtc3_data.humidity = (uint8_t)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
+            struct_shtc3_data.temperature = struct_shtc3_data.row_temperature * 175.0 / 65536.0 - 45.0;
+
+            ESP_LOGI("SHTC3 measure", "temperature is %.2f℃, humidity is %d%%. ", struct_shtc3_data.temperature, struct_shtc3_data.humidity);
+        }
+        if (HighWaterMark)
+        {
+            HighWaterMark = 0;
+            ESP_LOGI("SHTC3 HighWaterMark", "Stack`s free depth : %d/2048. ", uxTaskGetStackHighWaterMark(NULL));
+        }
+    }
+}
 
 esp_err_t i2c_master_init(void)
 {
@@ -47,48 +101,35 @@ esp_err_t shtc3_wakeup(void)
     return shtc3_write_cmd(SHTC3_WAKEUP_COMMAND);
 }
 
-// Normal Mode/ Read RH First/ Clock Stretching Enabled/ 0x5C24
-esp_err_t shtc3_measure_normal_rh_en_clocks(uint8_t *Humidity, uint8_t *Temperature)
+// Normal Mode/ Read RH First/ Clock Stretching Disabled/ 0x58E0
+esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf)
 {
-    uint8_t read_buf[6];
-    uint8_t i;
     esp_err_t err = ESP_OK;
 
-    err = shtc3_write_cmd(SHTC3_WAKEUP_COMMAND);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    err = shtc3_wakeup();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
 
     err = shtc3_write_cmd(SHTC3_MEASURE_CMD_4);
-    vTaskDelay(40 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
+    // RH first
     err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 
-    err = shtc3_write_cmd(SHTC3_SLEEP_COMMAND);
+    err = shtc3_sleep();
 
-    for (i = 0; i < 6; i++)
-    {
-        if (i < 3)
-        {
-            Humidity[i] = read_buf[i];
-        }
-        else if (i >= 3 && i < 6)
-        {
-            Temperature[i - 3] = read_buf[i];
-        }
-    }
     return err;
 }
 
-esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char BytesNbr, unsigned char CheckSum)
+esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsigned char CheckSum)
 {
-    unsigned char bit;
+    unsigned char bit, byte;
     unsigned char crc = 0xFF;
-    unsigned char byteCtr;
 
     esp_err_t err;
 
-    for (byteCtr = 0; byteCtr < BytesNbr; byteCtr++)
+    for (byte = 0; byte < ByteNbr; byte++)
     {
-        crc ^= Inputdata[byteCtr];
+        crc ^= Inputdata[byte];
         for (bit = 8; bit > 0; --bit)
         {
             if (crc & 0x80)
@@ -113,25 +154,3 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char BytesNbr, uns
 
     return err;
 }
-
-// /**
-//  * @brief Read a sequence of bytes from a MPU9250 sensor registers
-//  */
-// static esp_err_t mpu9250_register_read(uint8_t reg_addr, uint8_t *data, size_t len)
-// {
-//     ESP_ERROR_CHECK(mpu9250_register_read(MPU9250_WHO_AM_I_REG_ADDR, data, 1));
-//     return i2c_master_write_read_device(I2C_MASTER_NUM, MPU9250_SENSOR_ADDR, &reg_addr, 1, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-// }
-
-// /**
-//  * @brief Write a byte to a MPU9250 sensor register
-//  */
-// static esp_err_t mpu9250_register_write_byte(uint8_t reg_addr, uint8_t data)
-// {
-//     int ret;
-//     uint8_t write_buf[2] = {reg_addr, data};
-
-//     ret = i2c_master_write_to_device(I2C_MASTER_NUM, MPU9250_SENSOR_ADDR, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-
-//     return ret;
-// }
