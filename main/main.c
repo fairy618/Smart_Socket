@@ -34,7 +34,7 @@ void app_main(void)
 
     xTaskCreate(Task_LED, "Task_LED", 2048, NULL, 1, NULL);
 
-    xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 4096, NULL, 10, NULL);
+    // xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 4096, NULL, 10, NULL);
 
     // // Initialize NVS
     // esp_err_t ret = nvs_flash_init();

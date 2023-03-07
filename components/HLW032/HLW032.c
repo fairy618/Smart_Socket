@@ -12,23 +12,9 @@
 
 QueueHandle_t xQueue_HLW8032 = NULL;
 
-uint32_t HLW8032_VoltageREGParameter;
-uint32_t HLW8032_Voltager;
-uint32_t HLW8032_CurrentREGParameter;
-uint32_t HLW8032_Current;
-uint32_t HLW8032_PowerREGParameter;
-uint32_t HLW8032_Power;
-
-uint8_t HLW8032_CheckSum;
-
-uint16_t voltage_eff_tenfold;     // 电压有效值 十倍放大
-uint32_t current_eff_hundredfold; // 电流有效值 百倍放大
-uint16_t active_power_tenfold;    // 有功功率 十倍放大
-uint16_t apparent_power_tenfold;  // 视在功率 十倍放大
-float power_factor;               // 功率因素
-uint32_t PF_invert_cnt = 0;       // pf 取反次数
-uint32_t HLW8032_pf_reg;          // pf 寄存器的值
-uint64_t electricity_consumption; // 用电量
+static void hlw8032_init(void);
+static uint8_t hlw8032_lowbytes_checksum(uint8_t data[], uint8_t length);
+static uint32_t hlw8032_uint8_2_uint32(uint8_t HighByte, uint8_t MidByte, uint8_t LowByte);
 
 /*
  * @description:
@@ -37,6 +23,9 @@ uint64_t electricity_consumption; // 用电量
  */
 void Task_Hlw8032(void *pvParameters)
 {
+    static int UartRecCnt = 0;
+    HLW8032_data_t hlw8032_row_data;
+    ElectricalParameter_t ElectricalParameter;
     uart_event_t Event_uart1;
     // unsigned char flag_State = 0x00;
     uint8_t *hlw8032_uart_data = (uint8_t *)malloc(UART_BUF_SIZE);
@@ -58,82 +47,89 @@ void Task_Hlw8032(void *pvParameters)
         */
         if (xQueueReceive(xQueue_HLW8032, (void *)&Event_uart1, (TickType_t)portMAX_DELAY) == pdPASS)
         {
-            memset(hlw8032_uart_data, 0, UART_BUF_SIZE);
-
-            printf("\n");
-            // ESP_LOGE("UART1 Queue Rec", "Event_uart1.size is %d. ", Event_uart1.size);
-
-            switch (Event_uart1.type)
+            // memset(hlw8032_uart_data, 0, UART_BUF_SIZE);
+            UartRecCnt++;
+            // if (UartRecCnt % 20 == 0)
+            if (1)
             {
-            case UART_DATA:
-                ESP_LOGI("UART1 EVENT", "[UART DATA]: %d. ", Event_uart1.size);
-                int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
-                ESP_LOGI("UART_DATA", "len = %d. ", len);
-                break;
-            case UART_BREAK:
-                ESP_LOGE("UART1 EVENT", "uart rx break");
-                break;
-            case UART_BUFFER_FULL:
-                ESP_LOGE("UART1 EVENT", "ring buffer full");
-                uart_flush_input(HLW8032_UART_PORT_NUM);
-                xQueueReset(xQueue_HLW8032);
-                break;
-            case UART_FIFO_OVF:
-                ESP_LOGE("UART1 EVENT", "hw fifo overflow");
-                uart_flush_input(HLW8032_UART_PORT_NUM);
-                xQueueReset(xQueue_HLW8032);
-                break;
-            case UART_FRAME_ERR:
-                ESP_LOGE("UART1 EVENT", "uart frame error");
-                break;
-            case UART_PARITY_ERR:
-                ESP_LOGE("UART1 EVENT", "uart parity error");
-                break;
-            case UART_DATA_BREAK:
-                ESP_LOGE("UART1 EVENT", "UART_DATA_BREAK");
-                break;
-            case UART_PATTERN_DET:
-                uart_get_buffered_data_len(HLW8032_UART_PORT_NUM, &buffered_size);
-                int pos = uart_pattern_pop_pos(HLW8032_UART_PORT_NUM);
-                ESP_LOGI("UART_PATTERN_DET", "[UART PATTERN DETECTED] pos: %d, buffered size: %d", pos, buffered_size);
-                if (pos == -1)
+                switch (Event_uart1.type)
                 {
-                    // There used to be a UART_PATTERN_DET event, but the pattern position queue is full so that it can not
-                    // record the position. We should set a larger queue size.
-                    // As an example, we directly flush the rx buffer here.
+                case UART_DATA:
+                    ESP_LOGI("UART1 EVENT", "uart data: %d. ", Event_uart1.size);
+                    int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
+                    // ESP_ERROR_CHECK(hlw8032_data_processing(&hlw8032_row_data, &ElectricalParameter, hlw8032_uart_data, len));
+                    hlw8032_data_processing(&hlw8032_row_data, &ElectricalParameter, hlw8032_uart_data, len);
+                    ESP_LOGI("UART_DATA", "len = %d. ", len);
+                    break;
+                case UART_BREAK:
+                    ESP_LOGE("UART1 EVENT", "uart rx break");
+                    break;
+                case UART_BUFFER_FULL:
+                    ESP_LOGE("UART1 EVENT", "ring buffer full");
                     uart_flush_input(HLW8032_UART_PORT_NUM);
-                }
-                else
-                {
-                    uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, pos, 100 / portTICK_PERIOD_MS);
-                    uint8_t pat[3 + 1];
-                    memset(pat, 0, sizeof(pat));
-                    uart_read_bytes(HLW8032_UART_PORT_NUM, pat, 3, 100 / portTICK_PERIOD_MS);
-                    ESP_LOGI("UART_PATTERN_DET", "read data: %s", hlw8032_uart_data);
-                    ESP_LOGI("UART_PATTERN_DET", "read pat : %s", pat);
-                }
+                    xQueueReset(xQueue_HLW8032);
+                    break;
+                case UART_FIFO_OVF:
+                    ESP_LOGE("UART1 EVENT", "hw fifo overflow");
+                    uart_flush_input(HLW8032_UART_PORT_NUM);
+                    xQueueReset(xQueue_HLW8032);
+                    break;
+                case UART_FRAME_ERR:
+                    ESP_LOGE("UART1 EVENT", "uart frame error");
+                    break;
+                case UART_PARITY_ERR:
+                    ESP_LOGE("UART1 EVENT", "uart parity error");
+                    break;
+                case UART_DATA_BREAK:
+                    ESP_LOGE("UART1 EVENT", "UART_DATA_BREAK");
+                    break;
+                case UART_PATTERN_DET:
+                    uart_get_buffered_data_len(HLW8032_UART_PORT_NUM, &buffered_size);
+                    int pos = uart_pattern_pop_pos(HLW8032_UART_PORT_NUM);
+                    ESP_LOGI("UART_PATTERN_DET", "[UART PATTERN DETECTED] pos: %d, buffered size: %d", pos, buffered_size);
+                    if (pos == -1)
+                    {
+                        // There used to be a UART_PATTERN_DET event, but the pattern position queue is full so that it can not
+                        // record the position. We should set a larger queue size.
+                        // As an example, we directly flush the rx buffer here.
+                        uart_flush_input(HLW8032_UART_PORT_NUM);
+                    }
+                    else
+                    {
+                        uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, pos, 100 / portTICK_PERIOD_MS);
+                        uint8_t pat[3 + 1];
+                        memset(pat, 0, sizeof(pat));
+                        uart_read_bytes(HLW8032_UART_PORT_NUM, pat, 3, 100 / portTICK_PERIOD_MS);
+                        ESP_LOGI("UART_PATTERN_DET", "read data: %s", hlw8032_uart_data);
+                        ESP_LOGI("UART_PATTERN_DET", "read pat : %s", pat);
+                    }
+                    ESP_LOGE("UART1 EVENT", "UART_PATTERN_DET");
+                    break;
+                case UART_WAKEUP:
+                    ESP_LOGE("UART1 EVENT", "UART_WAKEUP");
+                    break;
+                case UART_EVENT_MAX:
+                    ESP_LOGE("UART1 EVENT", "UART_EVENT_MAX");
+                    break;
 
-                ESP_LOGE("UART1 EVENT", "UART_PATTERN_DET");
-                break;
-            case UART_WAKEUP:
-                ESP_LOGE("UART1 EVENT", "UART_WAKEUP");
-                break;
-            case UART_EVENT_MAX:
-                ESP_LOGE("UART1 EVENT", "UART_EVENT_MAX");
-                break;
-
-            default:
-                break;
+                default:
+                    break;
+                }
             }
-        }
-        // vTaskDelay(10 / portTICK_PERIOD_MS);
+            else
+            {
+                uart_flush_input(HLW8032_UART_PORT_NUM);
+                xQueueReset(xQueue_HLW8032);
+            }
+            memset(hlw8032_uart_data, 0, UART_BUF_SIZE);
+            // vTaskDelay(10 / portTICK_PERIOD_MS);
 
-        if (false)
-        {
-            // need debug
-            electricity_consumption = (HLW8032_pf_reg + PF_invert_cnt * 65536) / (3.6 * (10 ^ 12) / HLW8032_PowerREGParameter / HLW8032_VOLTAGE_COEF / HLW8032_CURRENT_COFE);
+            // if (false)
+            // {
+            //     // need debug
+            //     electricity_consumption = (HLW8032_pf_reg + PF_invert_cnt * 65536) / (3.6 * (10 ^ 12) / HLW8032_PowerREGParameter / HLW8032_VOLTAGE_COEF / HLW8032_CURRENT_COFE);
+            // }
         }
-
         if (HighWaterMark)
         {
             HighWaterMark = 0;
@@ -146,7 +142,7 @@ void Task_Hlw8032(void *pvParameters)
  * @description:
  * @return {*}
  */
-void hlw8032_init(void)
+static void hlw8032_init(void)
 {
     gpio_reset_pin(GPIO_NUM_HLW8032_PF);
     gpio_set_direction(GPIO_NUM_HLW8032_PF, GPIO_MODE_INPUT);
@@ -267,3 +263,126 @@ void hlw8032_init(void)
                 printf("\n");
                 // memset(hlw8032_uart_data, 0, UART_BUF_SIZE);
 */
+
+esp_err_t hlw8032_data_processing(HLW8032_data_t *hlw8032_row_data_, ElectricalParameter_t *ElectricalParameter, uint8_t row_data[], int DataLen)
+{
+    esp_err_t ret = ESP_OK;
+    uint8_t index = 0;
+
+    ESP_LOGD("hlw8032_data_processing", "Begin.");
+
+    if (DataLen != HLW8032_UATR_DATA_LEN)
+    {
+        ESP_LOGE("HLW8032 DATA", "The length of data is %d. It should be 24!", DataLen);
+        ret = ESP_FAIL;
+    }
+    else
+    {
+        hlw8032_row_data_->Check = row_data[1];
+        if (hlw8032_row_data_->Check != 0x5A)
+        {
+            ESP_LOGE("HLW8032 DATA", "The value of Check REG  is %#X, it should be 0x5A. ", hlw8032_row_data_->Check);
+            ret = ESP_FAIL;
+        }
+        else
+        {
+            uint8_t CheckSum = hlw8032_lowbytes_checksum(row_data, DataLen);
+            hlw8032_row_data_->CheckSum = row_data[23];
+            if (hlw8032_row_data_->CheckSum != CheckSum)
+            {
+                ESP_LOGE("HLW8032 DATA", "The checksum is %#X, but the value of checksum REG  is %#X. ", CheckSum, hlw8032_row_data_->CheckSum);
+                ret = ESP_FAIL;
+            }
+            else
+            {
+                hlw8032_row_data_->State = row_data[0];
+                switch (hlw8032_row_data_->State)
+                {
+                case 0xAA:
+                    ESP_LOGE("HLW8032 DATA", " The value of State REG is %#X. The chip is error.", hlw8032_row_data_->State);
+                    ret = ESP_FAIL;
+                    break;
+
+                case 0x55:
+                    ESP_LOGI("HLW8032 DATA", " The value of State REG is %#X. The chip is fine and no overflow.", hlw8032_row_data_->State);
+
+                    index = 2;
+                    hlw8032_row_data_->VoltageParameter = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+                    index = 5;
+                    hlw8032_row_data_->Voltage = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                    index = 8;
+                    hlw8032_row_data_->CurrentParameter = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+                    index = 11;
+                    hlw8032_row_data_->Current = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                    index = 14;
+                    hlw8032_row_data_->PowerParameter = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+                    index = 17;
+                    hlw8032_row_data_->Power = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                    ElectricalParameter->VoltageRMS = hlw8032_row_data_->VoltageParameter * HLW8032_VOLTAGE_COEF / hlw8032_row_data_->Voltage;
+                    ElectricalParameter->CurrentRMS = hlw8032_row_data_->CurrentParameter * HLW8032_CURRENT_COFE / hlw8032_row_data_->Current;
+                    ElectricalParameter->ActivePower = hlw8032_row_data_->PowerParameter * HLW8032_VOLTAGE_COEF * HLW8032_CURRENT_COFE / hlw8032_row_data_->Power;
+                    ElectricalParameter->ApparentPower = ElectricalParameter->VoltageRMS * ElectricalParameter->CurrentRMS;
+                    ElectricalParameter->PowerFactor = ElectricalParameter->ActivePower / ElectricalParameter->ApparentPower;
+
+                    ESP_LOGI("HLW8023 ELEPAR", "Voltage RMS is %f. ", ElectricalParameter->VoltageRMS);
+                    ESP_LOGI("HLW8023 ELEPAR", "Current RMS is %f. ", ElectricalParameter->CurrentRMS);
+                    ESP_LOGI("HLW8023 ELEPAR", "Active Power is %f. ", ElectricalParameter->ActivePower);
+                    ESP_LOGI("HLW8023 ELEPAR", "Apparent Power is %f. ", ElectricalParameter->ApparentPower);
+                    ESP_LOGI("HLW8023 ELEPAR", "Power Factor is %f. ", ElectricalParameter->PowerFactor);
+                    break;
+
+                default:
+                    ESP_LOGI("HLW8023 ELEPAR", "default");
+                    if ((hlw8032_row_data_->State & 0xF0) == 0xF0)
+                    {
+                        if (GET_BIT(hlw8032_row_data_->State, 3))
+                        {
+                            ESP_LOGE("HLW8023 DATA VOERFLOW", "Voltage REG overflow. ");
+                        }
+                        if (GET_BIT(hlw8032_row_data_->State, 2))
+                        {
+                            ESP_LOGE("HLW8023 DATA VOERFLOW", "Current REG overflow. ");
+                        }
+                        if (GET_BIT(hlw8032_row_data_->State, 1))
+                        {
+                            ESP_LOGE("HLW8023 DATA VOERFLOW", "Power REG overflow. ");
+                        }
+                        if (GET_BIT(hlw8032_row_data_->State, 0))
+                        {
+                            ESP_LOGE("HLW8023 DATA ERROR", "Parameters REGs all error. ");
+                        }
+                    }
+                    else
+                    {
+                        ESP_LOGE("HLW8023 STATE REG ERROR", "The value of state REG is %#X. ", hlw8032_row_data_->State);
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+static uint8_t hlw8032_lowbytes_checksum(uint8_t data[], uint8_t length)
+{
+    uint32_t DataSum = 0;
+
+    for (uint8_t i = 2; i < length - 1; i++)
+    {
+        DataSum += data[i];
+    }
+
+    return (uint8_t)DataSum;
+}
+
+static uint32_t hlw8032_uint8_2_uint32(uint8_t HighByte, uint8_t MidByte, uint8_t LowByte)
+{
+    // return (((uint32_t)(HighByte & 0x000000FF) << 16) | ((uint32_t)(MidByte & 0x000000FF) << 8) | ((uint32_t)(LowByte & 0x000000FF) << 0));
+    return (HighByte << 16) | (MidByte << 8) | (LowByte);
+}
