@@ -11,10 +11,44 @@
 
 void Task_key(void *pvParameters)
 {
+    static uint8_t LongPressCnt = 0;
+    
+    gpio_reset_pin(GPIO_NUM_KEY);
+    gpio_set_direction(GPIO_NUM_KEY, GPIO_MODE_INPUT);
 
     while (1)
     {
-        /* code */
+        if (gpio_get_level(GPIO_NUM_KEY) == 0)
+        {
+            vTaskDelay(20 / portTICK_PERIOD_MS);
+            LongPressCnt = 0;
+            if (gpio_get_level(GPIO_NUM_KEY) == 0)
+            {
+                ESP_LOGI("TASK KEY", "Key is press. ");
+
+                while (gpio_get_level(GPIO_NUM_KEY) == 0)
+                {
+                    vTaskDelay(20 / portTICK_PERIOD_MS);
+                    if (LongPressCnt < 0xFF)
+                    {
+                        LongPressCnt++;
+                    }
+                    if (LongPressCnt == 100)
+                    {
+                        ESP_LOGI("TASK KEY", "Key is long press. ");
+                    }
+                }
+                if (LongPressCnt < 100)
+                {
+                    ESP_LOGI("TASK KEY", "Key is free. ");
+                }
+                else
+                {
+                    ESP_LOGI("TASK KEY", "Key is free after long press. ");
+                }
+            }
+        }
+        vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
 

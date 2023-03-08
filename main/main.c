@@ -29,10 +29,16 @@ void wifi_init_softap(void);
 
 void app_main(void)
 {
+    
+
+
+
     // esp_log_level_set(TAG, ESP_LOG_INFO);
     xTaskCreate(Task_shtc3, "Task_shtc3", 2048, NULL, 2, NULL);
 
     xTaskCreate(Task_LED, "Task_LED", 2048, NULL, 1, NULL);
+    
+    xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
 
     // xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 4096, NULL, 10, NULL);
 
