@@ -9,6 +9,11 @@
 
 #include "BasicDrive.h"
 
+/* 
+ * @description: polling
+ * @param {void} *pvParameters
+ * @return {*}
+ */
 void Task_key(void *pvParameters)
 {
     static uint8_t LongPressCnt = 0;
@@ -51,7 +56,11 @@ void Task_key(void *pvParameters)
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
-
+/* 
+ * @description: 
+ * @param {void} *pvParameters
+ * @return {*}
+ */
 void Task_Relay(void *pvParameters)
 {
     // gpio_reset_pin(GPIO_NUM_RELAY_PWM);
@@ -66,6 +75,11 @@ void Task_Relay(void *pvParameters)
     }
 }
 
+/* 
+ * @description: blink
+ * @param {void} *pvParameters
+ * @return {*}
+ */
 void Task_LED(void *pvParameters)
 {
     bool HighWaterMark = 1;
@@ -89,6 +103,11 @@ void Task_LED(void *pvParameters)
     }
 }
 
+/* 
+ * @description: 
+ * @param {void} *pvParameters
+ * @return {*}
+ */
 void Task_WS2812(void *pvParameters)
 {
     //

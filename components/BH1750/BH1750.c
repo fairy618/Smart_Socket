@@ -9,6 +9,11 @@
 
 #include "BH1750.h"
 
+/* 
+ * @description: 
+ * @param {void} *pvParameters
+ * @return {*}
+ */
 void Task_bh1750(void *pvParameters)
 {
     bh1750_power_cmd(BH1750_INS_POWER_ON);
@@ -26,7 +31,11 @@ void Task_bh1750(void *pvParameters)
     }
 }
 
-// power on OR power off OR reset
+/* 
+ * @description: Control BH1750 to power on, power down, or reset
+ * @param {uint8_t} bh1750_cmd      It should be one of [BH1750_INS_POWER_DOWN | BH1750_INS_POWER_ON | BH1750_INS_RESET]
+ * @return {*}
+ */
 esp_err_t bh1750_power_cmd(uint8_t bh1750_cmd)
 {
     uint8_t write_buffer[1] = {BH1750_INS_POWER_DOWN};
@@ -39,7 +48,11 @@ esp_err_t bh1750_power_cmd(uint8_t bh1750_cmd)
     return i2c_master_write_to_device(I2C_MASTER_NUM, BH1750_SENSOR_ADDRESS, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
-// CMD: continuous measurement
+/* 
+ * @description: Continuous measurement mode
+ * @param {uint8_t} meas_mod    It should be one of [BH1750_INS_CNT_H1_MOD | BH1750_INS_CNT_H2_MOD | BH1750_INS_CNT_L_MOD]
+ * @return {*}
+ */
 esp_err_t bh1750_cnt_meas(uint8_t meas_mod)
 {
     uint8_t write_buffer[1] = {BH1750_INS_CNT_L_MOD}; // default value: BH1750_INS_CNT_L_MOD
@@ -52,7 +65,11 @@ esp_err_t bh1750_cnt_meas(uint8_t meas_mod)
     return i2c_master_write_to_device(I2C_MASTER_NUM, BH1750_SENSOR_ADDRESS, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
-// CMD: once measurement
+/* 
+ * @description: Once measurement mode
+ * @param {uint8_t} meas_mod    It should be one of [BH1750_INS_ONCE_H1_MOD | BH1750_INS_ONCE_H2_MOD | BH1750_INS_ONCE_L_MOD]
+ * @return {*}
+ */
 esp_err_t bh1750_once_meas(uint8_t meas_mod)
 {
     uint8_t write_buffer[1] = {BH1750_INS_ONCE_L_MOD};
@@ -66,6 +83,11 @@ esp_err_t bh1750_once_meas(uint8_t meas_mod)
 }
 
 // get the light intensity in lm
+/* 
+ * @description: Read data form IIC bus and converted into light intensity uint in lm
+ * @param {uint16_t} *light_data
+ * @return {*}
+ */
 esp_err_t bh1750_read_data(uint16_t *light_data)
 {
     esp_err_t err;
@@ -75,7 +97,7 @@ esp_err_t bh1750_read_data(uint16_t *light_data)
 
     *light_data = (read_buf[0] << 8) | (read_buf[1]);
 
-    *light_data = (uint16_t)(*light_data / 1.2);
+    *light_data = (uint16_t)(*light_data / 1.2f);
 
     return err;
 }

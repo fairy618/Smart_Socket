@@ -31,8 +31,9 @@ typedef struct
     uint32_t PowerParameter;
     uint32_t Power;
     uint8_t DataUpdata;
-    uint16_t PF;
+    uint16_t PF_reg_value;
     uint8_t CheckSum;
+    uint16_t PF_reverse_cnt;
 } HLW8032_data_t;
 
 typedef struct
@@ -42,13 +43,10 @@ typedef struct
     float ActivePower;
     float ApparentPower;
     float PowerFactor;
+    uint64_t PF_value;
+    float ElectricityConsumption;
 } ElectricalParameter_t;
 
 void Task_Hlw8032(void *pvParameters);
-esp_err_t hlw8032_data_processing(HLW8032_data_t *hlw8032_row_data_, ElectricalParameter_t *ElectricalParameter, uint8_t row_data[], int DataLen);
-
-// static uint8_t hlw8032_lowbytes_checksum(uint8_t data[], uint8_t length);
-// static uint32_t hlw8032_uint8_2_uint32(uint8_t HighByte, uint8_t MidByte, uint8_t LowByte);
-// static void hlw8032_init(void);
 
 #endif /*_DRIVER_HLW8032_H_*/
