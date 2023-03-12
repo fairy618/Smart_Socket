@@ -55,6 +55,7 @@
 #define MQTT_CLIENT_ID "a1mDa96Wei7.SmartScoket02|securemode=2,signmethod=hmacsha256,timestamp=1678613495121|"
 #define MQTT_DVEICE_NAME "SmartScoket02"
 #define MQTT_DEVICE_SECRET "821c70c328b82443dd97bd3bdaf2025a"
+#define MQTT_PRODUCT_KEY "a1mDa96Wei7"
 
 static int s_retry_num = 0;
 
@@ -155,15 +156,22 @@ static void mqtt_timer_callback(TimerHandle_t xTimer)
 static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
-        .credentials.username = MQTT_USER_NAME,
-        .credentials.client_id = MQTT_CLIENT_ID,
-        .credentials.authentication.password = MQTT_PASSWORD,
         .broker.address.hostname = MQTT_HOSTNAME,
         .broker.address.transport = MQTT_TRANSPORT_OVER_TCP,
         .broker.address.port = MQTT_PORT,
-        // .broker.verification.certificate = MQTT_DEVICE_SECRET,
+        .credentials.username = MQTT_USER_NAME,
+        .credentials.client_id = MQTT_CLIENT_ID,
+        .credentials.authentication.password = MQTT_PASSWORD,
+
+        .credentials.authentication.certificate = MQTT_DVEICE_NAME,
+
+        .credentials.authentication.key = MQTT_PRODUCT_KEY,
+        .credentials.authentication.key_password = MQTT_DEVICE_SECRET,
+
     };
-    // mqtt_cfg.broker.verification.certificate_len = strlen(MQTT_DEVICE_SECRET);
+    mqtt_cfg.credentials.authentication.certificate_len = strlen(MQTT_DVEICE_NAME);
+    mqtt_cfg.credentials.authentication.key_len = strlen(MQTT_PRODUCT_KEY);
+    mqtt_cfg.credentials.authentication.key_password_len = strlen(MQTT_DEVICE_SECRET);
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
