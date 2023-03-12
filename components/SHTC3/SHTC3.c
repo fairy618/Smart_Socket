@@ -9,15 +9,18 @@
 
 #include "SHTC3.h"
 
-/* 
- * @description: 
+/*
+ * @description:
  * @param {void} *pvParameters
  * @return {*}
  */
 void Task_shtc3(void *pvParameters)
 {
+    QueueHandle_t xQueue = *((QueueHandle_t *)pvParameters);
+
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;
+    Env_data_t EnvData;
     bool HighWaterMark = 1;
 
     i2c_master_init();
@@ -53,6 +56,15 @@ void Task_shtc3(void *pvParameters)
             struct_shtc3_data.humidity = (uint8_t)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
             struct_shtc3_data.temperature = struct_shtc3_data.row_temperature * 175.0 / 65536.0 - 45.0;
 
+            EnvData.ChipTemperature = struct_shtc3_data.temperature + 20;
+            EnvData.EnvHumidity = struct_shtc3_data.humidity;
+            EnvData.EnvironmentTemperature = struct_shtc3_data.temperature;
+
+            if (xQueueSend(xQueue, (void *)&EnvData, portMAX_DELAY) != pdPASS)
+            {
+                ESP_LOGE("SHTC3 measure", "Send EnvData to xQueue failed! ");
+            }
+
             ESP_LOGI("SHTC3 measure", "temperature is %.2f℃, humidity is %d%%. ", struct_shtc3_data.temperature, struct_shtc3_data.humidity);
         }
         if (HighWaterMark)
@@ -63,7 +75,7 @@ void Task_shtc3(void *pvParameters)
     }
 }
 
-/* 
+/*
  * @description: Initialize the IIC bus for SHTC3 (and BH1750)
  * @return {*}
  */
@@ -85,7 +97,7 @@ esp_err_t i2c_master_init(void)
     return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
 }
 
-/* 
+/*
  * @description: Read the ID register of SHTC3
  * @param {uint8_t} *id_reg     save thr ID of SHTC3
  * @return {*}
@@ -98,8 +110,8 @@ esp_err_t shtc3_read_out_id(uint8_t *id_reg)
     return i2c_master_write_read_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), id_reg, read_size, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
-/* 
- * @description: 
+/*
+ * @description:
  * @param {uint16_t} shtc3_cmd
  * @return {*}
  */
@@ -110,8 +122,8 @@ esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd)
     return i2c_master_write_to_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
-/* 
- * @description: 
+/*
+ * @description:
  * @return {*}
  */
 esp_err_t shtc3_sleep(void)
@@ -119,8 +131,8 @@ esp_err_t shtc3_sleep(void)
     return shtc3_write_cmd(SHTC3_SLEEP_COMMAND);
 }
 
-/* 
- * @description: 
+/*
+ * @description:
  * @return {*}
  */
 esp_err_t shtc3_wakeup(void)
@@ -128,7 +140,7 @@ esp_err_t shtc3_wakeup(void)
     return shtc3_write_cmd(SHTC3_WAKEUP_COMMAND);
 }
 
-/* 
+/*
  * @description:  Normal Mode/ Read RH First/ Clock Stretching Disabled/ 0x58E0
  * @param {uint8_t} *read_buf
  * @return {*}
@@ -151,9 +163,9 @@ esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf)
     return err;
 }
 
-/* 
+/*
  * @description: CRC calculates the data of shtc3
- * @param {unsigned char} Inputdata     intputdata 
+ * @param {unsigned char} Inputdata     intputdata
  * @param {unsigned char} ByteNbr       the length of intputdata`s need CRC
  * @param {unsigned char} CheckSum      the Checknum from SHTC3
  * @return {*}

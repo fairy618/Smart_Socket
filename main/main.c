@@ -14,6 +14,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
+#include "freertos/timers.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -40,22 +41,20 @@
 #define EXAMPLE_ESP_WIFI_PASS "12345678"
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
-// #define CONFIG_BROKER_URL "mqtt://mqtt.eclipseprojects.io"
-#define BROKER_URL "iot-06z00fj6casse3y.mqtt.iothub.aliyuncs.com"
-
-#define MQTT_USER_NAME "4JxiKytRv9OkNx1aB7yX&a14U3nfkMWp"
-#define MQTT_PASSWORD "15adf4434872cb42ec510f5d516cc4d9a1b1ec23cd54ed98f4490817e882ed85"
-#define MQTT_HOSTNAME "a14U3nfkMWp.iot-as-mqtt.cn-shanghai.aliyuncs.com"
-#define MQTT_PORT 1883
-#define MQTT_CLIENT_ID "a14U3nfkMWp.4JxiKytRv9OkNx1aB7yX|securemode=2,signmethod=hmacsha256,timestamp=1678615001639|"
-#define MQTT_DVEICE_NAME "4JxiKytRv9OkNx1aB7yX"
-
-// #define MQTT_USER_NAME "SmartScoket02&a1mDa96Wei7"
-// #define MQTT_PASSWORD "ae144a7141e341f21eb8937eba211042157a9cea6a02647d68d7c1b8351e2507"
-// #define MQTT_HOSTNAME "a1mDa96Wei7.iot-as-mqtt.cn-shanghai.aliyuncs.com"
+// #define MQTT_USER_NAME "4JxiKytRv9OkNx1aB7yX&a14U3nfkMWp"
+// #define MQTT_PASSWORD "15adf4434872cb42ec510f5d516cc4d9a1b1ec23cd54ed98f4490817e882ed85"
+// #define MQTT_HOSTNAME "a14U3nfkMWp.iot-as-mqtt.cn-shanghai.aliyuncs.com"
 // #define MQTT_PORT 1883
-// #define MQTT_CLIENT_ID "a1mDa96Wei7.SmartScoket02|securemode=2,signmethod=hmacsha256,timestamp=1678613495121|"
-// #define MQTT_DVEICE_NAME "SmartScoket02"
+// #define MQTT_CLIENT_ID "a14U3nfkMWp.4JxiKytRv9OkNx1aB7yX|securemode=2,signmethod=hmacsha256,timestamp=1678615001639|"
+// #define MQTT_DVEICE_NAME "4JxiKytRv9OkNx1aB7yX"
+
+#define MQTT_USER_NAME "SmartScoket02&a1mDa96Wei7"
+#define MQTT_PASSWORD "ae144a7141e341f21eb8937eba211042157a9cea6a02647d68d7c1b8351e2507"
+#define MQTT_HOSTNAME "a1mDa96Wei7.iot-as-mqtt.cn-shanghai.aliyuncs.com"
+#define MQTT_PORT 1883
+#define MQTT_CLIENT_ID "a1mDa96Wei7.SmartScoket02|securemode=2,signmethod=hmacsha256,timestamp=1678613495121|"
+#define MQTT_DVEICE_NAME "SmartScoket02"
+#define MQTT_DEVICE_SECRET "821c70c328b82443dd97bd3bdaf2025a"
 
 static int s_retry_num = 0;
 
@@ -65,14 +64,28 @@ static const char *MQTT_TAG = "MQTT";
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
+static TimerHandle_t MqttTimer;
+
+esp_mqtt_client_handle_t client_g;
+
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 void wifi_init_sta(void);
 static void mqtt_app_start(void);
 static void log_error_if_nonzero(const char *message, int error_code);
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
+static void mqtt_timer_callback(TimerHandle_t xTimer);
 
 void app_main(void)
 {
+    QueueHandle_t Queue_shtc3_2_mqtt = NULL;
+    Env_data_t EnvData;
+
+    char EnvData2SendStr[100];
+
+    Queue_shtc3_2_mqtt = xQueueCreate(5, sizeof(Env_data_t));
+
+    esp_log_level_set("REC DATA", ESP_LOG_DEBUG);
+
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
 
     ESP_LOGI(TAG, "[APP] Startup..");
@@ -99,21 +112,48 @@ void app_main(void)
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
 
+    // MqttTimer = xTimerCreate("mqtt timer", 5000 / portTICK_PERIOD_MS, pdTRUE, NULL, mqtt_timer_callback);
+    // xTimerStart(MqttTimer, portMAX_DELAY);
+
     mqtt_app_start();
 
     // // esp_log_level_set(TAG, ESP_LOG_INFO);
-    // xTaskCreate(Task_shtc3, "Task_shtc3", 2048, NULL, 2, NULL);
+    xTaskCreate(Task_shtc3, "Task_shtc3", 2048, (void *)&Queue_shtc3_2_mqtt, 2, NULL);
 
     // xTaskCreate(Task_LED, "Task_LED", 2048, NULL, 1, NULL);
 
     // xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
 
     // xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 4096, NULL, 10, NULL);
+
+    while (1)
+    {
+        if (xQueueReceive(Queue_shtc3_2_mqtt, (void *)&EnvData, portMAX_DELAY) == pdPASS)
+        {
+            sprintf(EnvData2SendStr, "EnvT:%.2f,EnvRH:%.2f,ChipT:%.2f.", EnvData.EnvironmentTemperature, EnvData.EnvHumidity, EnvData.ChipTemperature);
+            ESP_LOGI("REC DATA", "%s", EnvData2SendStr);
+            if (client_g != NULL)
+            {
+                esp_mqtt_client_publish(client_g, "/a1mDa96Wei7/SmartScoket02/user/EnvDataUpdata", EnvData2SendStr, 0, 1, 0);
+            }
+            else
+            {
+                ESP_LOGE("MQTT", " client_g is NULL.");
+            }
+        }
+        vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
+}
+
+static void mqtt_timer_callback(TimerHandle_t xTimer)
+{
+    ESP_LOGI("mqtt_timer_callback", "It is time. ");
+
+    // msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
 }
 
 static void mqtt_app_start(void)
 {
-
     esp_mqtt_client_config_t mqtt_cfg = {
         .credentials.username = MQTT_USER_NAME,
         .credentials.client_id = MQTT_CLIENT_ID,
@@ -121,7 +161,9 @@ static void mqtt_app_start(void)
         .broker.address.hostname = MQTT_HOSTNAME,
         .broker.address.transport = MQTT_TRANSPORT_OVER_TCP,
         .broker.address.port = MQTT_PORT,
+        // .broker.verification.certificate = MQTT_DEVICE_SECRET,
     };
+    // mqtt_cfg.broker.verification.certificate_len = strlen(MQTT_DEVICE_SECRET);
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
@@ -143,31 +185,32 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 {
     ESP_LOGD(MQTT_TAG, "Event dispatched from event loop base=%s, event_id=%lu", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
-    esp_mqtt_client_handle_t client = event->client;
+    client_g = event->client;
     int msg_id;
     switch ((esp_mqtt_event_id_t)event_id)
     {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(MQTT_TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
+        msg_id = esp_mqtt_client_publish(client_g, "/topic/qos1", "data_3", 0, 1, 0);
         ESP_LOGI(MQTT_TAG, "sent publish successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
+        msg_id = esp_mqtt_client_subscribe(client_g, "/topic/qos0", 0);
         ESP_LOGI(MQTT_TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
+        msg_id = esp_mqtt_client_subscribe(client_g, "/topic/qos1", 1);
         ESP_LOGI(MQTT_TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
+        msg_id = esp_mqtt_client_unsubscribe(client_g, "/topic/qos1");
         ESP_LOGI(MQTT_TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(MQTT_TAG, "MQTT_EVENT_DISCONNECTED");
+        xTimerStop(MqttTimer, portMAX_DELAY);
         break;
 
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(MQTT_TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
+        msg_id = esp_mqtt_client_publish(client_g, "/topic/qos0", "data", 0, 0, 0);
         ESP_LOGI(MQTT_TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
@@ -196,14 +239,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     }
 }
-
-/*
-{"clientId":"iakajLiNdUB.SmartScoket_01|securemode=2,signmethod=hmacsha256,timestamp=1678600524906|",
-"username":"SmartScoket_01&iakajLiNdUB",
-"mqttHostUrl":"iot-06z00fj6casse3y.mqtt.iothub.aliyuncs.com",
-"passwd":"936d2209acf78e8ebee292674b9c83270c6324a53ff5460e9e8ff9d26fc225a5",
-"port":1883}
-*/
 
 static void log_error_if_nonzero(const char *message, int error_code)
 {
