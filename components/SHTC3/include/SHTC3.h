@@ -1,6 +1,8 @@
 #ifndef _DRIVER_SHTC3_H_
 #define _DRIVER_SHTC3_H_
 
+#define SHTC3_INTERVAL_TIME_MS 5000
+
 #define I2C_MASTER_SCL_PIN 7        /*!< GPIO number used for I2C master clock */
 #define I2C_MASTER_SDA_PIN 6        /*!< GPIO number used for I2C master data  */
 #define I2C_MASTER_NUM 0            /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */

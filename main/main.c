@@ -119,9 +119,9 @@ void app_main(void)
     // mqtt_app_start();
 
     // // esp_log_level_set(TAG, ESP_LOG_INFO);
-    xTaskCreate(Task_shtc3, "Task_shtc3", 2048, (void *)&Queue_shtc3_2_mqtt, 2, NULL);
+    // xTaskCreate(Task_shtc3, "Task_shtc3", 2048, (void *)&Queue_shtc3_2_mqtt, 2, NULL);
+    xTaskCreate(Task_shtc3, "Task_shtc3", 2048, NULL, 2, NULL);
     xTaskCreate(Task_bh1750, "Task_bh1750", 2048, NULL, 2, NULL);
-    // xTaskCreate(Task_shtc3, "Task_shtc3", 2048, NULL, 2, NULL);
 
     xTaskCreate(Task_LED, "Task_LED", 2048, NULL, 1, NULL);
     xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);

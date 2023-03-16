@@ -25,6 +25,8 @@ void Task_shtc3(void *pvParameters)
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;
     Env_data_t EnvData;
+    temperature_sensor_handle_t temp_sensor = NULL;
+    temperature_sensor_config_t temp_sensor_config = {-10, 80, TEMPERATURE_SENSOR_CLK_SRC_DEFAULT};
     bool HighWaterMark = 1;
 
     i2c_master_init();
@@ -38,9 +40,16 @@ void Task_shtc3(void *pvParameters)
 
     shtc3_sleep();
 
+    ESP_LOGI("CHIP TEMP", "Install temperature sensor, expected temp ranger range: -10~80 ℃");
+
+    ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor_config, &temp_sensor));
+
+    ESP_LOGI("CHIP TEMP", "Enable temperature sensor");
+    ESP_ERROR_CHECK(temperature_sensor_enable(temp_sensor));
+
     while (1)
     {
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        vTaskDelay(SHTC3_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
 
         shtc3_measure_normal_rh_dis_clocks(struct_shtc3_data.row_data);
 
@@ -60,7 +69,7 @@ void Task_shtc3(void *pvParameters)
             struct_shtc3_data.humidity = (uint8_t)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
             struct_shtc3_data.temperature = struct_shtc3_data.row_temperature * 175.0 / 65536.0 - 45.0;
 
-            EnvData.ChipTemperature = struct_shtc3_data.temperature + 20;
+            temperature_sensor_get_celsius(temp_sensor, &EnvData.ChipTemperature);
             EnvData.EnvHumidity = struct_shtc3_data.humidity;
             EnvData.EnvironmentTemperature = struct_shtc3_data.temperature;
 
@@ -69,7 +78,7 @@ void Task_shtc3(void *pvParameters)
             //     ESP_LOGE("SHTC3 measure", "Send EnvData to xQueue failed! ");
             // }
 
-            ESP_LOGI("SHTC3 measure", "temperature is %.2f℃, humidity is %d%%. ", struct_shtc3_data.temperature, struct_shtc3_data.humidity);
+            ESP_LOGI("SHTC3 measure", "temperature is %.2f℃, chip`s temperature is %.2f℃, humidity is %d%%. ", struct_shtc3_data.temperature, EnvData.ChipTemperature, struct_shtc3_data.humidity);
         }
         if (HighWaterMark)
         {
