@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+
 #include "driver/gpio.h"
 #include "driver/uart.h"
+
 #include "esp_log.h"
 #include "esp_err.h"
 

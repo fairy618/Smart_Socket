@@ -1,15 +1,18 @@
 #include <stdio.h>
 #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+
 #include "driver/ledc.h"
 #include "driver/gpio.h"
+#include "driver/rmt_tx.h"
+
 #include "esp_log.h"
 #include "esp_err.h"
-#include "driver/rmt_tx.h"
-#include "led_strip_encoder.h"
 
+#include "led_strip_encoder.h"
 #include "BasicDrive.h"
 
 static uint8_t led_strip_pixels[RMT_LED_NUMBERS * 3];
@@ -108,7 +111,7 @@ void Task_LED(void *pvParameters)
 
         gpio_set_level(GPIO_NUM_LED, 0);
         vTaskDelay(200 / portTICK_PERIOD_MS);
-        
+
         if (HighWaterMark)
         {
             HighWaterMark = 0;

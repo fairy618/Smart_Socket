@@ -1,9 +1,13 @@
 #include <stdio.h>
-#include "driver/i2c.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+
+#include "driver/i2c.h"
 #include "driver/gpio.h"
+#include "driver/temperature_sensor.h"
+
 #include "esp_log.h"
 #include "esp_err.h"
 
