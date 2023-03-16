@@ -9,13 +9,15 @@
 
 #include "BH1750.h"
 
-/* 
- * @description: 
+/*
+ * @description:
  * @param {void} *pvParameters
  * @return {*}
  */
 void Task_bh1750(void *pvParameters)
 {
+    uint16_t LightData = 0;
+
     bh1750_power_cmd(BH1750_INS_POWER_ON);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
@@ -27,11 +29,15 @@ void Task_bh1750(void *pvParameters)
 
     while (1)
     {
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        bh1750_read_data(&LightData);
+
+        ESP_LOGI("BH1750", "The light intensity is %d(lm). ", LightData);
+
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
 
-/* 
+/*
  * @description: Control BH1750 to power on, power down, or reset
  * @param {uint8_t} bh1750_cmd      It should be one of [BH1750_INS_POWER_DOWN | BH1750_INS_POWER_ON | BH1750_INS_RESET]
  * @return {*}
@@ -48,7 +54,7 @@ esp_err_t bh1750_power_cmd(uint8_t bh1750_cmd)
     return i2c_master_write_to_device(I2C_MASTER_NUM, BH1750_SENSOR_ADDRESS, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
-/* 
+/*
  * @description: Continuous measurement mode
  * @param {uint8_t} meas_mod    It should be one of [BH1750_INS_CNT_H1_MOD | BH1750_INS_CNT_H2_MOD | BH1750_INS_CNT_L_MOD]
  * @return {*}
@@ -65,7 +71,7 @@ esp_err_t bh1750_cnt_meas(uint8_t meas_mod)
     return i2c_master_write_to_device(I2C_MASTER_NUM, BH1750_SENSOR_ADDRESS, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
-/* 
+/*
  * @description: Once measurement mode
  * @param {uint8_t} meas_mod    It should be one of [BH1750_INS_ONCE_H1_MOD | BH1750_INS_ONCE_H2_MOD | BH1750_INS_ONCE_L_MOD]
  * @return {*}
@@ -83,7 +89,7 @@ esp_err_t bh1750_once_meas(uint8_t meas_mod)
 }
 
 // get the light intensity in lm
-/* 
+/*
  * @description: Read data form IIC bus and converted into light intensity uint in lm
  * @param {uint16_t} *light_data
  * @return {*}

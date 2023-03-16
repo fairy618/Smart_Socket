@@ -60,10 +60,10 @@ void Task_shtc3(void *pvParameters)
             EnvData.EnvHumidity = struct_shtc3_data.humidity;
             EnvData.EnvironmentTemperature = struct_shtc3_data.temperature;
 
-            if (xQueueSend(xQueue, (void *)&EnvData, portMAX_DELAY) != pdPASS)
-            {
-                ESP_LOGE("SHTC3 measure", "Send EnvData to xQueue failed! ");
-            }
+            // if (xQueueSend(xQueue, (void *)&EnvData, portMAX_DELAY) != pdPASS)
+            // {
+            //     ESP_LOGE("SHTC3 measure", "Send EnvData to xQueue failed! ");
+            // }
 
             ESP_LOGI("SHTC3 measure", "temperature is %.2f℃, humidity is %d%%. ", struct_shtc3_data.temperature, struct_shtc3_data.humidity);
         }

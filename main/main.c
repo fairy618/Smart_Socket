@@ -79,71 +79,75 @@ static void mqtt_timer_callback(TimerHandle_t xTimer);
 void app_main(void)
 {
     QueueHandle_t Queue_shtc3_2_mqtt = NULL;
-    Env_data_t EnvData;
+    // Env_data_t EnvData;
 
-    char EnvData2SendStr[100];
+    // char EnvData2SendStr[100];
 
     Queue_shtc3_2_mqtt = xQueueCreate(5, sizeof(Env_data_t));
 
-    esp_log_level_set("REC DATA", ESP_LOG_DEBUG);
+    // esp_log_level_set("REC DATA", ESP_LOG_DEBUG);
 
-    xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
+    // xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
 
-    ESP_LOGI(TAG, "[APP] Startup..");
-    ESP_LOGI(TAG, "[APP] Free memory: %lu bytes", esp_get_free_heap_size());
-    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    // ESP_LOGI(TAG, "[APP] Startup..");
+    // ESP_LOGI(TAG, "[APP] Free memory: %lu bytes", esp_get_free_heap_size());
+    // ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
-    esp_log_level_set("*", ESP_LOG_INFO);
-    esp_log_level_set("mqtt_client", ESP_LOG_VERBOSE);
-    esp_log_level_set("MQTT_EXAMPLE", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
-    esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
-    esp_log_level_set("outbox", ESP_LOG_VERBOSE);
+    // esp_log_level_set("*", ESP_LOG_INFO);
+    // esp_log_level_set("mqtt_client", ESP_LOG_VERBOSE);
+    // esp_log_level_set("MQTT_EXAMPLE", ESP_LOG_VERBOSE);
+    // esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
+    // esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
+    // esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
+    // esp_log_level_set("outbox", ESP_LOG_VERBOSE);
 
     // Initialize NVS
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
-    {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+    // esp_err_t ret = nvs_flash_init();
+    // if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    // {
+    //     ESP_ERROR_CHECK(nvs_flash_erase());
+    //     ret = nvs_flash_init();
+    // }
+    // ESP_ERROR_CHECK(ret);
 
-    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
-    wifi_init_sta();
+    // ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
+    // wifi_init_sta();
 
     // MqttTimer = xTimerCreate("mqtt timer", 5000 / portTICK_PERIOD_MS, pdTRUE, NULL, mqtt_timer_callback);
     // xTimerStart(MqttTimer, portMAX_DELAY);
 
-    mqtt_app_start();
+    // mqtt_app_start();
 
     // // esp_log_level_set(TAG, ESP_LOG_INFO);
     xTaskCreate(Task_shtc3, "Task_shtc3", 2048, (void *)&Queue_shtc3_2_mqtt, 2, NULL);
+    xTaskCreate(Task_bh1750, "Task_bh1750", 2048, NULL, 2, NULL);
+    // xTaskCreate(Task_shtc3, "Task_shtc3", 2048, NULL, 2, NULL);
 
-    // xTaskCreate(Task_LED, "Task_LED", 2048, NULL, 1, NULL);
+    xTaskCreate(Task_LED, "Task_LED", 2048, NULL, 1, NULL);
+    xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
 
-    // xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
+    xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
+    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 4, NULL);
 
     // xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 4096, NULL, 10, NULL);
 
-    while (1)
-    {
-        if (xQueueReceive(Queue_shtc3_2_mqtt, (void *)&EnvData, portMAX_DELAY) == pdPASS)
-        {
-            sprintf(EnvData2SendStr, "EnvT:%.2f,EnvRH:%.2f,ChipT:%.2f.", EnvData.EnvironmentTemperature, EnvData.EnvHumidity, EnvData.ChipTemperature);
-            ESP_LOGI("REC DATA", "%s", EnvData2SendStr);
-            if (client_g != NULL)
-            {
-                esp_mqtt_client_publish(client_g, "/a1mDa96Wei7/SmartScoket02/user/EnvDataUpdata", EnvData2SendStr, 0, 1, 0);
-            }
-            else
-            {
-                ESP_LOGE("MQTT", " client_g is NULL.");
-            }
-        }
-        vTaskDelay(5 / portTICK_PERIOD_MS);
-    }
+    // while (1)
+    // {
+    //     if (xQueueReceive(Queue_shtc3_2_mqtt, (void *)&EnvData, portMAX_DELAY) == pdPASS)
+    //     {
+    //         sprintf(EnvData2SendStr, "EnvT:%.2f,EnvRH:%.2f,ChipT:%.2f.", EnvData.EnvironmentTemperature, EnvData.EnvHumidity, EnvData.ChipTemperature);
+    //         ESP_LOGI("REC DATA", "%s", EnvData2SendStr);
+    //         if (client_g != NULL)
+    //         {
+    //             esp_mqtt_client_publish(client_g, "/a1mDa96Wei7/SmartScoket02/user/EnvDataUpdata", EnvData2SendStr, 0, 1, 0);
+    //         }
+    //         else
+    //         {
+    //             ESP_LOGE("MQTT", " client_g is NULL.");
+    //         }
+    //     }
+    //     vTaskDelay(5 / portTICK_PERIOD_MS);
+    // }
 }
 
 static void mqtt_timer_callback(TimerHandle_t xTimer)
