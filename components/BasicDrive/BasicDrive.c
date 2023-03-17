@@ -100,6 +100,8 @@ void Task_LED(void *pvParameters)
 {
     bool HighWaterMark = 1;
 
+    int LedBlinkTime = *((int *)pvParameters);
+
     gpio_reset_pin(GPIO_NUM_LED);
     gpio_set_direction(GPIO_NUM_LED, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_NUM_LED, 1);
@@ -107,10 +109,10 @@ void Task_LED(void *pvParameters)
     while (1)
     {
         gpio_set_level(GPIO_NUM_LED, 1);
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(LedBlinkTime / portTICK_PERIOD_MS);
 
         gpio_set_level(GPIO_NUM_LED, 0);
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(LedBlinkTime / portTICK_PERIOD_MS);
 
         if (HighWaterMark)
         {
@@ -167,7 +169,7 @@ void Task_WS2812(void *pvParameters)
             {
                 // Build RGB pixels
                 hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
-                led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+                led_strip_hsv2rgb(hue, 100, 10, &red, &green, &blue);
                 led_strip_pixels[j * 3 + 0] = green;
                 led_strip_pixels[j * 3 + 1] = blue;
                 led_strip_pixels[j * 3 + 2] = red;
@@ -179,7 +181,7 @@ void Task_WS2812(void *pvParameters)
             // ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
             // vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
         }
-        start_rgb += 3;
+        start_rgb += 2;
     }
 }
 
