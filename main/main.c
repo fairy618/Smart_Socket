@@ -81,12 +81,12 @@ void app_main(void)
 {
     int LedTaskBlinkTime = 1000;
 
-    QueueHandle_t Queue_shtc3_2_mqtt = NULL;
+    // QueueHandle_t Queue_shtc3_2_mqtt = NULL;
     // Env_data_t EnvData;
 
     // char EnvData2SendStr[100];
 
-    Queue_shtc3_2_mqtt = xQueueCreate(5, sizeof(Env_data_t));
+    // Queue_shtc3_2_mqtt = xQueueCreate(5, sizeof(Env_data_t));
 
     WifiConnect();
 

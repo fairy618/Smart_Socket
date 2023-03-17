@@ -17,6 +17,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
+#include "cJSON.h"
 #include "alMQTT.h"
 
 /* FreeRTOS event group to signal when we are connected*/
@@ -58,6 +59,8 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
+static void demo_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void demo_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
 
 void wifi_init_sta(void)
 {
@@ -220,9 +223,53 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
     case AIOT_MQTTRECV_PUB:
     {
         ESP_LOGI("LinkSDK", "pub, qos: %d, topic: %.*s", packet->data.pub.qos, packet->data.pub.topic_len, packet->data.pub.topic);
-        // printf("pub, payload: %.*s\n", packet->data.pub.payload_len, packet->data.pub.payload);
+        printf("\n\n*******************************************\npub, payload: %.*s\n", (int)(packet->data.pub.payload_len), packet->data.pub.payload);
         // printf("pub, payload: %.*s\n",  packet->data.pub.payload);
         /* TODO: 处理服务器下发的业务报文 */
+
+        printf("\n\n###########################################\n%s\n\n", packet->data.pub.topic);
+
+        //  printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+        //         printf("DATA=%.*s\r\n", event->data_len, event->data);
+        //         if (memcmp("/sys/a1gFEcNBZwC/aaaa/thing/service/property/set", event->topic, event->topic_len) == 0)
+        //         {
+        //             cJSON *json = cJSON_ParseWithLength(event->data, event->data_len);
+        //             const cJSON *method;
+        //             method = cJSON_GetObjectItem(json, "method");
+        //             if (cJSON_IsString(method) && (method->valuestring != NULL))
+        //             {
+        //                 if (strcmp("thing.service.property.set", method->valuestring) == 0)
+        //                 {
+        //                     cJSON *params = cJSON_GetObjectItem(json, "params");
+        //                     cJSON *result = cJSON_CreateObject();
+        //                     //                        cJSON_AddItemToObject(result, "params", params);
+        //                     cJSON_AddItemReferenceToObject(result, "params", params);
+        //                     cJSON *powerstate = cJSON_GetObjectItem(params, "powerstate");
+        //                     if (cJSON_IsNumber(powerstate))
+        //                     {
+        //                         if (powerstate->valueint == 0)
+        //                         {
+        //                             led_off();
+        //                         }
+        //                         else
+        //                         {
+        //                             led_on();
+        //                         }
+        //                     }
+
+        //                     char *result_string = cJSON_PrintUnformatted(result);
+
+        //                     cJSON_Delete(result);
+        //                     esp_mqtt_client_publish(client, "/sys/a1gFEcNBZwC/aaaa/thing/event/property/post",
+        //                                             result_string,
+        //                                             strlen(result_string),
+        //                                             0, 0);
+        //                     printf("%s\n", result_string);
+        //                     cJSON_free(result_string);
+        //                 }
+        //             }
+        //             cJSON_Delete(json);
+        //         }
     }
     break;
 
@@ -284,7 +331,8 @@ void Task_ali_mqqt(void *pvParameters)
     char *url = "iot-as-mqtt.cn-shanghai.aliyuncs.com"; /* 阿里云平台上海站点的域名后缀 */
     char host[100] = {0};                               /* 用这个数组拼接设备连接的云平台站点全地址, 规则是 ${productKey}.iot-as-mqtt.cn-shanghai.aliyuncs.com */
     uint16_t port = 443;                                /* 无论设备是否使用TLS连接阿里云平台, 目的端口都是443 */
-    aiot_sysdep_network_cred_t cred;                    /* 安全凭据结构体, 如果要用TLS, 这个结构体中配置CA证书等参数 */
+    uint8_t post_reply = 1;
+    aiot_sysdep_network_cred_t cred; /* 安全凭据结构体, 如果要用TLS, 这个结构体中配置CA证书等参数 */
 
     /* 配置SDK的底层依赖 */
     aiot_sysdep_set_portfile(&g_aiot_sysdep_portfile);
@@ -334,6 +382,25 @@ void Task_ali_mqqt(void *pvParameters)
     /* 配置MQTT事件回调函数 */
     aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_EVENT_HANDLER, (void *)demo_mqtt_event_handler);
 
+    void *dm_handle = NULL;
+    {
+
+        /* 创建DATA-MODEL实例 */
+        dm_handle = aiot_dm_init();
+        if (dm_handle == NULL)
+        {
+            ESP_LOGE("ALI MQTT", "aiot_dm_init failed");
+            // return -1;
+        }
+        /* 配置MQTT实例句柄 */
+        aiot_dm_setopt(dm_handle, AIOT_DMOPT_MQTT_HANDLE, mqtt_handle);
+        /* 配置消息接收处理回调函数 */
+        aiot_dm_setopt(dm_handle, AIOT_DMOPT_RECV_HANDLER, (void *)demo_dm_recv_handler);
+
+        /* 配置是云端否需要回复post_reply给设备. 如果为1, 表示需要云端回复, 否则表示不回复 */
+        aiot_dm_setopt(dm_handle, AIOT_DMOPT_POST_REPLY, (void *)&post_reply);
+    }
+
     /* 与服务器建立MQTT连接 */
     res = aiot_mqtt_connect(mqtt_handle);
     if (res < STATE_SUCCESS)
@@ -346,7 +413,11 @@ void Task_ali_mqqt(void *pvParameters)
 
     /* MQTT 订阅topic功能示例, 请根据自己的业务需求进行使用 */
     {
-        char *sub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/+/post_reply";
+        // char *sub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/+/post_reply";
+        char *sub_topic = "/ext/ntp/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/response";
+
+        aiot_mqtt_sub(mqtt_handle, "/sys/${YourProductKey}/${YourDeviceName}/thing/event/property/batch/post_reply", NULL, 1,
+                      NULL);
 
         res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
         if (res < 0)
@@ -393,8 +464,11 @@ void Task_ali_mqqt(void *pvParameters)
     /* 主循环进入休眠 */
     while (1)
     {
+        // demo_send_property_post(dm_handle, "{\"LightSwitch\": 0}");
+        pal_post_property_EnvTemperature(dm_handle, 66.66);
         // sleep(1);
-        vTaskDelay(20 / portTICK_PERIOD_MS);
+
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 
     /* 断开MQTT连接, 一般不会运行到这里 */
@@ -442,4 +516,165 @@ void WifiConnect(void)
     // /* start linkkit mqtt */
     // ESP_LOGI(TAG, "Start linkkit mqtt");
     // linkkit_main();
+}
+
+/* 属性上报函数演示 */
+int32_t demo_send_property_post(void *dm_handle, char *params)
+{
+    aiot_dm_msg_t msg;
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_PROPERTY_POST;
+    msg.data.property_post.params = params;
+
+    return aiot_dm_send(dm_handle, &msg);
+}
+
+/* 用户数据接收处理回调函数 */
+static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    printf("demo_dm_recv_handler, type = %d\r\n", recv->type);
+
+    switch (recv->type)
+    {
+
+    /* 属性上报, 事件上报, 获取期望属性值或者删除期望属性值的应答 */
+    case AIOT_DMRECV_GENERIC_REPLY:
+    {
+        // demo_dm_recv_generic_reply(dm_handle, recv, userdata);
+    }
+    break;
+
+    /* 属性设置 */
+    case AIOT_DMRECV_PROPERTY_SET:
+    {
+        // demo_dm_recv_property_set(dm_handle, recv, userdata);
+    }
+    break;
+
+    /* 异步服务调用 */
+    case AIOT_DMRECV_ASYNC_SERVICE_INVOKE:
+    {
+        // demo_dm_recv_async_service_invoke(dm_handle, recv, userdata);
+    }
+    break;
+
+    /* 同步服务调用 */
+    case AIOT_DMRECV_SYNC_SERVICE_INVOKE:
+    {
+        // demo_dm_recv_sync_service_invoke(dm_handle, recv, userdata);
+    }
+    break;
+
+    /* 下行二进制数据 */
+    case AIOT_DMRECV_RAW_DATA:
+    {
+        // demo_dm_recv_raw_data(dm_handle, recv, userdata);
+    }
+    break;
+
+    /* 二进制格式的同步服务调用, 比单纯的二进制数据消息多了个rrpc_id */
+    case AIOT_DMRECV_RAW_SYNC_SERVICE_INVOKE:
+    {
+        // demo_dm_recv_raw_sync_service_invoke(dm_handle, recv, userdata);
+    }
+    break;
+
+    /* 上行二进制数据后, 云端的回复报文 */
+    case AIOT_DMRECV_RAW_DATA_REPLY:
+    {
+        // demo_dm_recv_raw_data_reply(dm_handle, recv, userdata);
+    }
+    break;
+
+    default:
+        break;
+    }
+}
+
+int32_t demo_send_property_batch_post(void *dm_handle, char *params)
+{
+    aiot_dm_msg_t msg;
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_PROPERTY_BATCH_POST;
+    msg.data.property_post.params = params;
+
+    return aiot_dm_send(dm_handle, &msg);
+}
+
+/* 事件上报函数演示 */
+int32_t demo_send_event_post(void *dm_handle, char *event_id, char *params)
+{
+    aiot_dm_msg_t msg;
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_EVENT_POST;
+    msg.data.event_post.event_id = event_id;
+    msg.data.event_post.params = params;
+
+    return aiot_dm_send(dm_handle, &msg);
+}
+
+/* 演示了获取属性LightSwitch的期望值, 用户可将此函数加入到main函数中运行演示 */
+int32_t demo_send_get_desred_requset(void *dm_handle)
+{
+    aiot_dm_msg_t msg;
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_GET_DESIRED;
+    msg.data.get_desired.params = "[\"LightSwitch\"]";
+
+    return aiot_dm_send(dm_handle, &msg);
+}
+
+/* 演示了删除属性LightSwitch的期望值, 用户可将此函数加入到main函数中运行演示 */
+int32_t demo_send_delete_desred_requset(void *dm_handle)
+{
+    aiot_dm_msg_t msg;
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_DELETE_DESIRED;
+    msg.data.get_desired.params = "{\"LightSwitch\":{}}";
+
+    return aiot_dm_send(dm_handle, &msg);
+}
+
+static void demo_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    printf("demo_dm_recv_raw_data_reply receive reply for up_raw msg, data len = %ld\r\n", recv->data.raw_data.data_len);
+    /* TODO: 用户处理下行的二进制数据, 位于recv->data.raw_data.data中 */
+}
+
+static void demo_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    printf("demo_dm_recv_raw_sync_service_invoke raw sync service rrpc_id = %s, data_len = %ld\r\n",
+           recv->data.raw_service_invoke.rrpc_id,
+           recv->data.raw_service_invoke.data_len);
+}
+
+/**
+ * @brief 上报属性EnvTemperature到云端
+ * @param dm_handle，dm句柄, 数据类型void *
+ * @return 消息id:(>=1), 上报失败: <0
+ */
+int32_t pal_post_property_EnvTemperature(void *dm_handle, float value)
+{
+    aiot_dm_msg_t msg;
+    int32_t res;
+    /* TODO: 用户可以在此加入业务逻辑处理代码 */
+
+    char property_payload[128] = {0};
+
+    res = snprintf(property_payload, sizeof(property_payload), "{\"EnvTemperature\": %f}", value);
+    if (res < 0)
+    {
+        return -1;
+    }
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_PROPERTY_POST;
+    msg.data.property_post.params = property_payload;
+
+    return aiot_dm_send(dm_handle, &msg);
 }

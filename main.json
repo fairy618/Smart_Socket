@@ -1,0 +1,81 @@
+{
+    "Status": "true",
+    "clientId": "null",
+    "RequestId": "null",
+    "InstanceId": "iot-public",
+    "Params": "",
+    "Time": "2023-03-17 17:51:28.672",
+    "Operation": "thing.service.property.set",
+    "Code": "200",
+    "Reason": "",
+    "UtcTime": "2023-03-17T17:51:28.672+0800",
+    "IotId": "4JxiKytRv9OkNx1aB7yX000000",
+    "ResultData": "",
+    "Content": "null",
+    "TraceId": "0bc0595716790466886055176e174e",
+    "ProductKey": "a14U3nfkMWp",
+    "BizCode": "ThingModel",
+    "DeviceName": "4JxiKytRv9OkNx1aB7yX",
+    "MessageId": ""
+}
+
+{
+    "Status": "false",
+    "clientId": "null",
+    "RequestId": "null",
+    "InstanceId": "iot-public",
+    "Params": "{\"LightSwitch\":0}",
+    "Time": "2023-03-17 22:15:03.295",
+    "Operation": "Check",
+    "Code": "6332",
+    "Reason": "tsl parse failed",
+    "UtcTime": "2023-03-17T22:15:03.295+0800",
+    "IotId": "4JxiKytRv9OkNx1aB7yX000000",
+    "ResultData": "{\"LightSwitch\":\"5092 - property not found\"}",
+    "Content": "null",
+    "TraceId": "a9fef00516790625032847375d006b",
+    "ProductKey": "a14U3nfkMWp",
+    "BizCode": "ThingModel",
+    "DeviceName": "4JxiKytRv9OkNx1aB7yX",
+    "MessageId": ""
+}
+
+
+2023-03-17 22: 34: 08.883,
+66B07C48538140908F8D9B4AFAB01A11, upstream - bizType=PROPERTY_REPORT,params={
+    "alinkSysConfig": {
+        "ack": 1
+    },
+    "aliyunPk": "1577497397656174",
+    "device": {
+        "aliyunCommodityCode": "iothub_senior",
+        "deviceKey": "4JxiKytRv9OkNx1aB7yX",
+        "deviceSecret": "***",
+        "gmtCreate": 1678614714000,
+        "gmtModified": 1678615012000,
+        "instanceId": "iotx-oxssharez200",
+        "iotId": "4JxiKytRv9OkNx1aB7yX000000",
+        "name": "4JxiKytRv9OkNx1aB7yX",
+        "nickname": "插座01",
+        "productKey": "a14U3nfkMWp",
+        "rbacTenantId": "66B07C48538140908F8D9B4AFAB01A11",
+        "status": 0,
+        "thingType": "DEVICE"
+    },
+    "id": "137",
+    "iotId": "4JxiKytRv9OkNx1aB7yX000000",
+    "method": "thing.event.property.post",
+    "params": {
+        "EnvTemperature": 66.660004
+    },
+    "proxyName": "thing.event.property.post",
+    "topic": "/sys/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/thing/event/property/post",
+    "uniMsgId": "1636737689125012480",
+    "version": "1.0"
+},result=code: 200,message:success,topic=/sys/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/thing/event/property/post,response={
+    "code": 200,
+    "data": {},
+    "id": "137",
+    "message": "success",
+    "version": "1.0"
+},device={},scriptData={},useTime=0,traceId=a9fef01416790636488606839d006a

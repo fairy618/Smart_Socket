@@ -169,7 +169,7 @@ void Task_WS2812(void *pvParameters)
             {
                 // Build RGB pixels
                 hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
-                led_strip_hsv2rgb(hue, 100, 10, &red, &green, &blue);
+                led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
                 led_strip_pixels[j * 3 + 0] = green;
                 led_strip_pixels[j * 3 + 1] = blue;
                 led_strip_pixels[j * 3 + 2] = red;
@@ -181,7 +181,7 @@ void Task_WS2812(void *pvParameters)
             // ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
             // vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
         }
-        start_rgb += 2;
+        start_rgb += 1;
     }
 }
 
