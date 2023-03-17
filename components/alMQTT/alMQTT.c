@@ -152,6 +152,7 @@ static uint8_t g_mqtt_recv_thread_running = 0;
 /* 日志回调函数, SDK的日志会从这里输出 */
 int32_t demo_state_logcb(int32_t code, char *message)
 {
+    // ESP_LOGD("LINK SDK", "%s", message);
     printf("%s", message);
     return 0;
 }
@@ -164,7 +165,8 @@ void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void 
     /* SDK因为用户调用了aiot_mqtt_connect()接口, 与mqtt服务器建立连接已成功 */
     case AIOT_MQTTEVT_CONNECT:
     {
-        printf("AIOT_MQTTEVT_CONNECT\n");
+        ESP_LOGI("LinkSDK", "AIOT_MQTTEVT_CONNECT. ");
+        // printf("AIOT_MQTTEVT_CONNECT\n");
         /* TODO: 处理SDK建连成功, 不可以在这里调用耗时较长的阻塞函数 */
     }
     break;
@@ -172,7 +174,8 @@ void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void 
     /* SDK因为网络状况被动断连后, 自动发起重连已成功 */
     case AIOT_MQTTEVT_RECONNECT:
     {
-        printf("AIOT_MQTTEVT_RECONNECT\n");
+        ESP_LOGI("LinkSDK", "AIOT_MQTTEVT_RECONNECT");
+        // printf("AIOT_MQTTEVT_RECONNECT\n");
         /* TODO: 处理SDK重连成功, 不可以在这里调用耗时较长的阻塞函数 */
     }
     break;
@@ -181,7 +184,8 @@ void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void 
     case AIOT_MQTTEVT_DISCONNECT:
     {
         char *cause = (event->data.disconnect == AIOT_MQTTDISCONNEVT_NETWORK_DISCONNECT) ? ("network disconnect") : ("heartbeat disconnect");
-        printf("AIOT_MQTTEVT_DISCONNECT: %s\n", cause);
+        ESP_LOGI("LinkSDK", "AIOT_MQTTEVT_DISCONNECT: %s. ", cause);
+        // printf("AIOT_MQTTEVT_DISCONNECT: %s\n", cause);
         /* TODO: 处理SDK被动断连, 不可以在这里调用耗时较长的阻塞函数 */
     }
     break;
@@ -199,22 +203,23 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
     {
     case AIOT_MQTTRECV_HEARTBEAT_RESPONSE:
     {
-        printf("heartbeat response\n");
+        ESP_LOGI("LinkSDK", "heartbeat response");
+        // printf("heartbeat response\n");
         /* TODO: 处理服务器对心跳的回应, 一般不处理 */
     }
     break;
 
     case AIOT_MQTTRECV_SUB_ACK:
     {
-        printf("suback, res: -0x%04lX, packet id: %d, max qos: %d\n",
-               -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
+        ESP_LOGI("LinkSDK", "suback, res: -0x%04lX, packet id: %d, max qos: %d", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
+        // printf("suback, res: -0x%04lX, packet id: %d, max qos: %d\n", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
         /* TODO: 处理服务器对订阅请求的回应, 一般不处理 */
     }
     break;
 
     case AIOT_MQTTRECV_PUB:
     {
-        printf("pub, qos: %d, topic: %.*s\n", packet->data.pub.qos, packet->data.pub.topic_len, packet->data.pub.topic);
+        ESP_LOGI("LinkSDK", "pub, qos: %d, topic: %.*s", packet->data.pub.qos, packet->data.pub.topic_len, packet->data.pub.topic);
         // printf("pub, payload: %.*s\n", packet->data.pub.payload_len, packet->data.pub.payload);
         // printf("pub, payload: %.*s\n",  packet->data.pub.payload);
         /* TODO: 处理服务器下发的业务报文 */
@@ -223,7 +228,8 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
 
     case AIOT_MQTTRECV_PUB_ACK:
     {
-        printf("puback, packet id: %d\n", packet->data.pub_ack.packet_id);
+        ESP_LOGI("LinkSDK", "puback, packet id: %d. ", packet->data.pub_ack.packet_id);
+        // printf("puback, packet id: %d\n", packet->data.pub_ack.packet_id);
         /* TODO: 处理服务器对QoS1上报消息的回应, 一般不处理 */
     }
     break;
@@ -297,7 +303,8 @@ void Task_ali_mqqt(void *pvParameters)
     mqtt_handle = aiot_mqtt_init();
     if (mqtt_handle == NULL)
     {
-        printf("aiot_mqtt_init failed\n");
+        ESP_LOGE("LinkSDK", "aiot_mqtt_init failed");
+        // printf("aiot_mqtt_init failed\n");
         // return -1;
     }
 
@@ -333,7 +340,7 @@ void Task_ali_mqqt(void *pvParameters)
     {
         /* 尝试建立连接失败, 销毁MQTT实例, 回收资源 */
         aiot_mqtt_deinit(&mqtt_handle);
-        printf("aiot_mqtt_connect failed: -0x%04lX\n", -res);
+        ESP_LOGE("LinkSDK", "aiot_mqtt_connect failed: -0x%04lX. ", -res);
         // return -1;
     }
 
@@ -344,7 +351,7 @@ void Task_ali_mqqt(void *pvParameters)
         res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
         if (res < 0)
         {
-            printf("aiot_mqtt_sub failed, res: -0x%04lX\n", -res);
+            ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
             // return -1;
         }
     }
@@ -357,7 +364,8 @@ void Task_ali_mqqt(void *pvParameters)
         res = aiot_mqtt_pub(mqtt_handle, pub_topic, (uint8_t *)pub_payload, strlen(pub_payload), 0);
         if (res < 0)
         {
-            printf("aiot_mqtt_sub failed, res: -0x%04lX\n", -res);
+            ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
+            // printf("aiot_mqtt_sub failed, res: -0x%04lX\n", -res);
             // return -1;
         }
     }
@@ -367,7 +375,8 @@ void Task_ali_mqqt(void *pvParameters)
     res = pthread_create(&g_mqtt_process_thread, NULL, demo_mqtt_process_thread, mqtt_handle);
     if (res < 0)
     {
-        printf("pthread_create demo_mqtt_process_thread failed: %ld\n", res);
+        ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_process_thread failed: %ld. ", res);
+        // printf("pthread_create demo_mqtt_process_thread failed: %ld\n", res);
         // return -1;
     }
 
@@ -376,7 +385,8 @@ void Task_ali_mqqt(void *pvParameters)
     res = pthread_create(&g_mqtt_recv_thread, NULL, demo_mqtt_recv_thread, mqtt_handle);
     if (res < 0)
     {
-        printf("pthread_create demo_mqtt_recv_thread failed: %ld\n", res);
+        ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_recv_thread failed: %ld. ", res);
+        // printf("pthread_create demo_mqtt_recv_thread failed: %ld\n", res);
         // return -1;
     }
 
@@ -392,7 +402,9 @@ void Task_ali_mqqt(void *pvParameters)
     if (res < STATE_SUCCESS)
     {
         aiot_mqtt_deinit(&mqtt_handle);
-        printf("aiot_mqtt_disconnect failed: -0x%04lX\n", -res);
+        aiot_mqtt_deinit(&mqtt_handle);
+        ESP_LOGE("LinkSDK", "aiot_mqtt_disconnect failed: -0x%04lX", -res);
+        // printf("aiot_mqtt_disconnect failed: -0x%04lX\n", -res);
         // return -1;
     }
 
@@ -400,7 +412,8 @@ void Task_ali_mqqt(void *pvParameters)
     res = aiot_mqtt_deinit(&mqtt_handle);
     if (res < STATE_SUCCESS)
     {
-        printf("aiot_mqtt_deinit failed: -0x%04lX\n", -res);
+        ESP_LOGE("LinkSDK", "aiot_mqtt_deinit failed: -0x%04lX. ", -res);
+        // printf("aiot_mqtt_deinit failed: -0x%04lX\n", -res);
         // return -1;
     }
 
