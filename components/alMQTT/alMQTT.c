@@ -50,6 +50,12 @@ static uint8_t g_mqtt_process_thread_running = 0;
 static uint8_t g_mqtt_recv_thread_running = 0;
 
 /*
+ * @description: user
+ */
+bool ReceMqttFlag = 0;
+alMQTT_data_t alMQTT_data;
+
+/*
  * @description: static function
  */
 static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
@@ -57,6 +63,10 @@ static void al_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_re
 static void al_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
 static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+static void demo_dm_recv_async_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void demo_dm_recv_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void demo_dm_recv_raw_data(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+
 /*
  * @description: wifi connect callback function
  * @param {void} *arg
@@ -402,7 +412,11 @@ void Task_ali_mqqt(void *pvParameters)
     /* 主循环进入休眠 */
     while (1)
     {
-        pal_post_property_EnvTemperature(dm_handle, 66.66);
+        if (ReceMqttFlag == 1)
+        {
+            ReceMqttFlag = 0;
+        }
+        // pal_post_property_EnvTemperature(dm_handle, 66.66);
 
         vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
@@ -489,35 +503,35 @@ static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, vo
     /* 异步服务调用 */
     case AIOT_DMRECV_ASYNC_SERVICE_INVOKE:
     {
-        // demo_dm_recv_async_service_invoke(dm_handle, recv, userdata);
+        demo_dm_recv_async_service_invoke(dm_handle, recv, userdata);
     }
     break;
 
     /* 同步服务调用 */
     case AIOT_DMRECV_SYNC_SERVICE_INVOKE:
     {
-        // demo_dm_recv_sync_service_invoke(dm_handle, recv, userdata);
+        demo_dm_recv_sync_service_invoke(dm_handle, recv, userdata);
     }
     break;
 
     /* 下行二进制数据 */
     case AIOT_DMRECV_RAW_DATA:
     {
-        // demo_dm_recv_raw_data(dm_handle, recv, userdata);
+        demo_dm_recv_raw_data(dm_handle, recv, userdata);
     }
     break;
 
     /* 二进制格式的同步服务调用, 比单纯的二进制数据消息多了个rrpc_id */
     case AIOT_DMRECV_RAW_SYNC_SERVICE_INVOKE:
     {
-        // al_dm_recv_raw_sync_service_invoke(dm_handle, recv, userdata);
+        al_dm_recv_raw_sync_service_invoke(dm_handle, recv, userdata);
     }
     break;
 
     /* 上行二进制数据后, 云端的回复报文 */
     case AIOT_DMRECV_RAW_DATA_REPLY:
     {
-        // al_dm_recv_raw_data_reply(dm_handle, recv, userdata);
+        al_dm_recv_raw_data_reply(dm_handle, recv, userdata);
     }
     break;
 
@@ -593,28 +607,6 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     ESP_LOGI("al_dm_recv_property_set", " msg_id = %ld, params = )%.*s(", (unsigned long)recv->data.property_set.msg_id, (int)(recv->data.property_set.params_len), recv->data.property_set.params);
 
     cJSON *json = cJSON_ParseWithLength(recv->data.property_set.params, (int)(recv->data.property_set.params_len));
-    // const cJSON *method;
-    // method = cJSON_GetObjectItem(json, "method");
-    // if (cJSON_IsString(method) && (method->valuestring != NULL))
-    // {
-    // if (strcmp("thing.service.property.set", method->valuestring) == 0)
-    // {
-    // cJSON *params = cJSON_GetObjectItem(json, "params");
-    // cJSON *result = cJSON_CreateObject();
-    // cJSON_AddItemToObject(result, "params", params);
-    // cJSON_AddItemReferenceToObject(result, "params", params);
-
-    /*
-
-     {
-        "RGBColor":{"Red":123,"Blue":123,"Green":123},
-        "Timer_Quantum":"来自云端",
-        "sleepOnOff":1,
-        "timingFunction":0,
-        "powerstate":1}
-
-    */
-
     cJSON *RGBColor = cJSON_GetObjectItem(json, "RGBColor");
     if (cJSON_IsObject(RGBColor))
     {
@@ -626,6 +618,10 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
 
         if (cJSON_IsNumber(Red) && cJSON_IsNumber(Blue) && cJSON_IsNumber(Green))
         {
+            alMQTT_data.RGBColorFlag = 1;
+            alMQTT_data.RGBColor.red = Red->valueint;
+            alMQTT_data.RGBColor.green = Green->valueint;
+            alMQTT_data.RGBColor.blue = Blue->valueint;
             ESP_LOGI("cJSON TEST", "RGB: %d-%d-%d", Red->valueint, Blue->valueint, Green->valueint);
         }
     }
@@ -633,12 +629,15 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *powerstate = cJSON_GetObjectItem(json, "powerstate");
     if (cJSON_IsNumber(powerstate))
     {
+        alMQTT_data.powerstateFlag = 0;
         if (powerstate->valueint == 0)
         {
+            alMQTT_data.powerstate = 0;
             ESP_LOGI("cJSON TEST", "powerstate = 0");
         }
         else
         {
+            alMQTT_data.powerstate = 1;
             ESP_LOGI("cJSON TEST", "powerstate = 1");
         }
     }
@@ -646,18 +645,23 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *Timer_Quantum = cJSON_GetObjectItem(json, "Timer_Quantum");
     if (cJSON_IsString(Timer_Quantum))
     {
+        alMQTT_data.Timer_QuantumFlag = 0;
+        alMQTT_data.Timer_Quantum = Timer_Quantum->valuestring;
         ESP_LOGI("cJSON TEST", "Timer_Quantum = %s", Timer_Quantum->valuestring);
     }
 
     cJSON *sleepOnOff = cJSON_GetObjectItem(json, "sleepOnOff");
     if (cJSON_IsNumber(sleepOnOff))
     {
+        alMQTT_data.sleepOnOffFlag = 0;
         if (sleepOnOff->valueint == 0)
         {
+            alMQTT_data.sleepOnOff = 0;
             ESP_LOGI("cJSON TEST", "sleepOnOff = 0");
         }
         else
         {
+            alMQTT_data.sleepOnOff = 1;
             ESP_LOGI("cJSON TEST", "sleepOnOff = 1");
         }
     }
@@ -665,28 +669,20 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *timingFunction = cJSON_GetObjectItem(json, "timingFunction");
     if (cJSON_IsNumber(timingFunction))
     {
+        alMQTT_data.timingFunctionFlag = 0;
         if (timingFunction->valueint == 0)
         {
+            alMQTT_data.timingFunction = 0;
             ESP_LOGI("cJSON TEST", "timingFunction = 0");
         }
         else
         {
+            alMQTT_data.timingFunction = 1;
             ESP_LOGI("cJSON TEST", "timingFunction = 1");
         }
     }
-    // char *result_string = cJSON_PrintUnformatted(result);
-
-    // cJSON_Delete(result);
-    // esp_mqtt_client_publish(client, "/sys/a1gFEcNBZwC/aaaa/thing/event/property/post",
-    //                         result_string,
-    //                         strlen(result_string),
-    //                         0, 0);
-    // printf("%s\n", result_string);
-    // cJSON_free(result_string);
-    // }
-    // }
     cJSON_Delete(json);
-    // }
+    ReceMqttFlag = 1;
 
     /* TODO: 以下代码演示如何对来自云平台的属性设置指令进行应答, 用户可取消注释查看演示效果 */
     // /*
@@ -705,4 +701,86 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
         }
     }
     // */
+}
+
+static void demo_dm_recv_async_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    printf("demo_dm_recv_async_service_invoke msg_id = %ld, service_id = %s, params = %.*s\r\n",
+           (unsigned long)recv->data.async_service_invoke.msg_id,
+           recv->data.async_service_invoke.service_id,
+           (int)(recv->data.async_service_invoke.params_len),
+           recv->data.async_service_invoke.params);
+
+    /* TODO: 以下代码演示如何对来自云平台的异步服务调用进行应答, 用户可取消注释查看演示效果
+     *
+     * 注意: 如果用户在回调函数外进行应答, 需要自行保存msg_id, 因为回调函数入参在退出回调函数后将被SDK销毁, 不可以再访问到
+     */
+
+    /*
+    {
+        aiot_dm_msg_t msg;
+
+        memset(&msg, 0, sizeof(aiot_dm_msg_t));
+        msg.type = AIOT_DMMSG_ASYNC_SERVICE_REPLY;
+        msg.data.async_service_reply.msg_id = recv->data.async_service_invoke.msg_id;
+        msg.data.async_service_reply.code = 200;
+        msg.data.async_service_reply.service_id = "ToggleLightSwitch";
+        msg.data.async_service_reply.data = "{\"dataA\": 20}";
+        int32_t res = aiot_dm_send(dm_handle, &msg);
+        if (res < 0) {
+            printf("aiot_dm_send failed\r\n");
+        }
+    }
+    */
+}
+
+static void demo_dm_recv_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    printf("demo_dm_recv_sync_service_invoke msg_id = %ld, rrpc_id = %s, service_id = %s, params = %.*s\r\n",
+           (unsigned long)recv->data.sync_service_invoke.msg_id,
+           recv->data.sync_service_invoke.rrpc_id,
+           recv->data.sync_service_invoke.service_id,
+           (int)(recv->data.sync_service_invoke.params_len),
+           recv->data.sync_service_invoke.params);
+
+    /* TODO: 以下代码演示如何对来自云平台的同步服务调用进行应答, 用户可取消注释查看演示效果
+     *
+     * 注意: 如果用户在回调函数外进行应答, 需要自行保存msg_id和rrpc_id字符串, 因为回调函数入参在退出回调函数后将被SDK销毁, 不可以再访问到
+     */
+
+    /*
+    {
+        aiot_dm_msg_t msg;
+
+        memset(&msg, 0, sizeof(aiot_dm_msg_t));
+        msg.type = AIOT_DMMSG_SYNC_SERVICE_REPLY;
+        msg.data.sync_service_reply.rrpc_id = recv->data.sync_service_invoke.rrpc_id;
+        msg.data.sync_service_reply.msg_id = recv->data.sync_service_invoke.msg_id;
+        msg.data.sync_service_reply.code = 200;
+        msg.data.sync_service_reply.service_id = "SetLightSwitchTimer";
+        msg.data.sync_service_reply.data = "{}";
+        int32_t res = aiot_dm_send(dm_handle, &msg);
+        if (res < 0) {
+            printf("aiot_dm_send failed\r\n");
+        }
+    }
+    */
+}
+
+static void demo_dm_recv_raw_data(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    printf("demo_dm_recv_raw_data raw data len = %d\r\n", (int)(recv->data.raw_data.data_len));
+    /* TODO: 以下代码演示如何发送二进制格式数据, 若使用需要有相应的数据透传脚本部署在云端 */
+    /*
+    {
+        aiot_dm_msg_t msg;
+        uint8_t raw_data[] = {0x01, 0x02};
+
+        memset(&msg, 0, sizeof(aiot_dm_msg_t));
+        msg.type = AIOT_DMMSG_RAW_DATA;
+        msg.data.raw_data.data = raw_data;
+        msg.data.raw_data.data_len = sizeof(raw_data);
+        aiot_dm_send(dm_handle, &msg);
+    }
+    */
 }

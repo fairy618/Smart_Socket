@@ -20,6 +20,27 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
+typedef struct
+{
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+} rgb_data_t;
+
+typedef struct
+{
+    rgb_data_t RGBColor;
+    char *Timer_Quantum;
+    bool sleepOnOff;
+    bool timingFunction;
+    bool powerstate;
+    bool RGBColorFlag;
+    bool Timer_QuantumFlag;
+    bool sleepOnOffFlag;
+    bool timingFunctionFlag;
+    bool powerstateFlag;
+} alMQTT_data_t;
+
 int32_t al_send_delete_desred_requset(void *dm_handle);
 int32_t al_send_get_desred_requset(void *dm_handle);
 int32_t al_send_event_post(void *dm_handle, char *event_id, char *params);
