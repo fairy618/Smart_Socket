@@ -1,17 +1,18 @@
 #include "SHTC3.h"
+#include "BH1750.h"
 
 /*
  * @description:
  * @param {void} *pvParameters
  * @return {*}
  */
-void Task_shtc3(void *pvParameters)
+void Task_sensor(void *pvParameters)
 {
-    QueueHandle_t xQueue = *((QueueHandle_t *)pvParameters);
+    QueueHandle_t xQueue = (QueueHandle_t)pvParameters;
 
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;
-    Env_data_t EnvData;
+    Sensor_data_t Sensor_data;
     temperature_sensor_handle_t temp_sensor = NULL;
     temperature_sensor_config_t temp_sensor_config = {-10, 80, TEMPERATURE_SENSOR_CLK_SRC_DEFAULT};
     bool HighWaterMark = 1;
@@ -34,9 +35,18 @@ void Task_shtc3(void *pvParameters)
     ESP_LOGI("CHIP TEMP", "Enable temperature sensor");
     ESP_ERROR_CHECK(temperature_sensor_enable(temp_sensor));
 
+    bh1750_power_cmd(BH1750_INS_POWER_ON);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+
+    bh1750_power_cmd(BH1750_INS_RESET);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+
+    bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+
     while (1)
     {
-        vTaskDelay(SHTC3_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
+        vTaskDelay(SENSOR_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
 
         shtc3_measure_normal_rh_dis_clocks(struct_shtc3_data.row_data);
 
@@ -53,19 +63,24 @@ void Task_shtc3(void *pvParameters)
             struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
             struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
 
-            struct_shtc3_data.humidity = (uint8_t)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
+            struct_shtc3_data.humidity = (float)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
             struct_shtc3_data.temperature = struct_shtc3_data.row_temperature * 175.0 / 65536.0 - 45.0;
 
-            temperature_sensor_get_celsius(temp_sensor, &EnvData.ChipTemperature);
-            EnvData.EnvHumidity = struct_shtc3_data.humidity;
-            EnvData.EnvironmentTemperature = struct_shtc3_data.temperature;
+            temperature_sensor_get_celsius(temp_sensor, &Sensor_data.ChipTemperature);
+            Sensor_data.EnvHumidity = struct_shtc3_data.humidity;
+            Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
+            bh1750_read_data(&Sensor_data.LightIntensity);
 
-            // if (xQueueSend(xQueue, (void *)&EnvData, portMAX_DELAY) != pdPASS)
-            // {
-            //     ESP_LOGE("SHTC3 measure", "Send EnvData to xQueue failed! ");
-            // }
+            if (xQueueSend(xQueue, (void *)&Sensor_data, 0) == pdPASS)
+            {
+                ESP_LOGI("SENSORe", " --- Send Sensor_data to xQueue done! --- ");
+            }
+            else
+            {
+                ESP_LOGE("SENSORe", " --- Send Sensor_data to xQueue failed! --- ");
+            }
 
-            ESP_LOGI("SHTC3 measure", "temperature is %.2f℃, chip`s temperature is %.2f℃, humidity is %d%%. ", struct_shtc3_data.temperature, EnvData.ChipTemperature, struct_shtc3_data.humidity);
+            ESP_LOGI("SENSOR", "EnvironmentTemperature is %.2f℃, ChipTemperature is %.2f℃, EnvHumidity is %.2f%%, LightIntensity is %d. ", Sensor_data.EnvironmentTemperature, Sensor_data.ChipTemperature, Sensor_data.EnvHumidity, Sensor_data.LightIntensity);
         }
         if (HighWaterMark)
         {

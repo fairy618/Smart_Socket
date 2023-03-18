@@ -27,10 +27,9 @@
 #define BH1750_INS_ONCE_H2_MOD 0x21 // Start measurement at 0.5lx resolution. Measurement Time is typically 120ms. It is automatically set to Power Down mode after measurement.
 #define BH1750_INS_ONCE_L_MOD 0x23  // Start measurement at 4lx resolution. Measurement Time is typically 16ms. It is automatically set to Power Down mode after measurement.
 
-void Task_bh1750(void *pvParameters);
 esp_err_t bh1750_power_cmd(uint8_t bh1750_cmd);
 esp_err_t bh1750_cnt_meas(uint8_t meas_mod);
 esp_err_t bh1750_once_meas(uint8_t meas_mod);
-esp_err_t bh1750_read_data(uint16_t *light_data);
+esp_err_t bh1750_read_data(int *light_data);
 
 #endif /*_DRIVER_BH1750_H_*/

@@ -14,7 +14,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
-#define SHTC3_INTERVAL_TIME_MS 5000
+#define SENSOR_INTERVAL_TIME_MS 3000
 
 #define I2C_MASTER_SCL_PIN 7        /*!< GPIO number used for I2C master clock */
 #define I2C_MASTER_SDA_PIN 6        /*!< GPIO number used for I2C master data  */
@@ -44,7 +44,7 @@ typedef struct
     uint16_t row_temperature;
     uint16_t row_humidity;
     float temperature;
-    uint8_t humidity;
+    float humidity;
     esp_err_t flag_temperature;
     esp_err_t flag_humidity;
 } shtc3_t;
@@ -54,9 +54,10 @@ typedef struct
     float ChipTemperature;
     float EnvHumidity;
     float EnvironmentTemperature;
-} Env_data_t;
+    int LightIntensity;
+} Sensor_data_t;
 
-void Task_shtc3(void *pvParameters);
+void Task_sensor(void *pvParameters);
 esp_err_t i2c_master_init(void);
 esp_err_t shtc3_read_out_id(uint8_t *data);
 esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd);

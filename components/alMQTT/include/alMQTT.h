@@ -70,6 +70,8 @@ typedef struct
     bool powerstateFlag;
 } alMQTT_data_t;
 
+// extern QueueHandle_t xQueueSensor_g;
+
 int32_t al_send_delete_desred_requset(void *dm_handle);
 int32_t al_send_get_desred_requset(void *dm_handle);
 int32_t al_send_event_post(void *dm_handle, char *event_id, char *params);

@@ -22,6 +22,8 @@
 
 #include "pal_prop_post_api.h"
 
+#include "SHTC3.h"
+
 /*
  * @description: wifi connect
  */
@@ -165,6 +167,175 @@ void wifi_init_sta(void)
     vEventGroupDelete(s_wifi_event_group);
 }
 
+void Task_ali_mqqt(void *pvParameters)
+{
+    int32_t res = STATE_SUCCESS;
+    void *mqtt_handle = NULL;
+    char *url = "iot-as-mqtt.cn-shanghai.aliyuncs.com"; /* 阿里云平台上海站点的域名后缀 */
+    char host[100] = {0};                               /* 用这个数组拼接设备连接的云平台站点全地址, 规则是 ${productKey}.iot-as-mqtt.cn-shanghai.aliyuncs.com */
+    uint16_t port = 443;                                /* 无论设备是否使用TLS连接阿里云平台, 目的端口都是443 */
+    uint8_t post_reply = 1;
+    aiot_sysdep_network_cred_t cred; /* 安全凭据结构体, 如果要用TLS, 这个结构体中配置CA证书等参数 */
+    Sensor_data_t SensorData;
+    QueueHandle_t xQueueSensor = (QueueHandle_t)pvParameters;
+
+    /* 配置SDK的底层依赖 */
+    aiot_sysdep_set_portfile(&g_aiot_sysdep_portfile);
+    /* 配置SDK的日志输出 */
+    aiot_state_set_logcb(demo_state_logcb);
+
+    /* 创建SDK的安全凭据, 用于建立TLS连接 */
+    memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
+    cred.option = AIOT_SYSDEP_NETWORK_CRED_SVRCERT_CA; /* 使用RSA证书校验MQTT服务端 */
+    cred.max_tls_fragment = 16384;                     /* 最大的分片长度为16K, 其它可选值还有4K, 2K, 1K, 0.5K */
+    cred.sni_enabled = 1;                              /* TLS建连时, 支持Server Name Indicator */
+    cred.x509_server_cert = ali_ca_cert;               /* 用来验证MQTT服务端的RSA根证书 */
+    cred.x509_server_cert_len = strlen(ali_ca_cert);   /* 用来验证MQTT服务端的RSA根证书长度 */
+
+    /* 创建1个MQTT客户端实例并内部初始化默认参数 */
+    mqtt_handle = aiot_mqtt_init();
+    if (mqtt_handle == NULL)
+    {
+        ESP_LOGE("Task ali MQTT", "aiot_mqtt_init failed");
+    }
+
+    snprintf(host, 100, "%s.%s", product_key, url);
+    /* 配置MQTT服务器地址 */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_HOST, (void *)host);
+    /* 配置MQTT服务器端口 */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PORT, (void *)&port);
+    /* 配置设备productKey */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PRODUCT_KEY, (void *)product_key);
+    /* 配置设备deviceName */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_NAME, (void *)device_name);
+    /* 配置设备deviceSecret */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_SECRET, (void *)device_secret);
+    /* 配置网络连接的安全凭据, 上面已经创建好了 */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_NETWORK_CRED, (void *)&cred);
+    /* 配置MQTT默认消息接收回调函数 */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_RECV_HANDLER, (void *)al_mqtt_recv_handler);
+    /* 配置MQTT事件回调函数 */
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_EVENT_HANDLER, (void *)al_mqtt_event_handler);
+
+    void *dm_handle = NULL;
+    /* 创建DATA-MODEL实例 */
+    dm_handle = aiot_dm_init();
+    if (dm_handle == NULL)
+    {
+        ESP_LOGE("Task ali MQTT", "aiot_dm_init failed");
+    }
+    /* 配置MQTT实例句柄 */
+    aiot_dm_setopt(dm_handle, AIOT_DMOPT_MQTT_HANDLE, mqtt_handle);
+    /* 配置消息接收处理回调函数 */
+    aiot_dm_setopt(dm_handle, AIOT_DMOPT_RECV_HANDLER, (void *)demo_dm_recv_handler);
+    /* 配置是云端否需要回复post_reply给设备. 如果为1, 表示需要云端回复, 否则表示不回复 */
+    aiot_dm_setopt(dm_handle, AIOT_DMOPT_POST_REPLY, (void *)&post_reply);
+
+    /* 与服务器建立MQTT连接 */
+    res = aiot_mqtt_connect(mqtt_handle);
+    if (res < STATE_SUCCESS)
+    {
+        /* 尝试建立连接失败, 销毁MQTT实例, 回收资源 */
+        aiot_mqtt_deinit(&mqtt_handle);
+        ESP_LOGE("Task ali MQTT", "aiot_mqtt_connect failed: -0x%04lX. ", -res);
+    }
+
+    /* MQTT 订阅topic功能示例, 请根据自己的业务需求进行使用 */
+    // {
+    char *sub_topic = "/ext/ntp/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/response";
+
+    aiot_mqtt_sub(mqtt_handle, "/sys/${YourProductKey}/${YourDeviceName}/thing/event/property/batch/post_reply", NULL, 1, NULL);
+
+    res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
+    if (res < 0)
+    {
+        ESP_LOGE("Task ali MQTT", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
+    }
+    // }
+
+    /* MQTT 发布消息功能示例, 请根据自己的业务需求进行使用 */
+    // {
+    char *pub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/property/post";
+    char *pub_payload = "{\"id\":\"1\",\"version\":\"1.0\",\"params\":{\"LightSwitch\":0}}";
+
+    res = aiot_mqtt_pub(mqtt_handle, pub_topic, (uint8_t *)pub_payload, strlen(pub_payload), 0);
+    if (res < 0)
+    {
+        ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
+    }
+    // }
+
+    /* 创建一个单独的线程, 专用于执行aiot_mqtt_process, 它会自动发送心跳保活, 以及重发QoS1的未应答报文 */
+    g_mqtt_process_thread_running = 1;
+    res = pthread_create(&g_mqtt_process_thread, NULL, demo_mqtt_process_thread, mqtt_handle);
+    if (res < 0)
+    {
+        ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_process_thread failed: %ld. ", res);
+    }
+
+    /* 创建一个单独的线程用于执行aiot_mqtt_recv, 它会循环收取服务器下发的MQTT消息, 并在断线时自动重连 */
+    g_mqtt_recv_thread_running = 1;
+    res = pthread_create(&g_mqtt_recv_thread, NULL, demo_mqtt_recv_thread, mqtt_handle);
+    if (res < 0)
+    {
+        ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_recv_thread failed: %ld. ", res);
+    }
+
+    /* 主循环进入休眠 */
+    while (1)
+    {
+        // if (ReceMqttFlag == 1)
+        // {
+        //     ReceMqttFlag = 0;
+        // }
+
+        // if (uxQueueMessagesWaiting(xQueueSensor) != 0) // Returns the number of items that are currently held in a queue
+        // {
+        if (xQueueReceive(xQueueSensor, &SensorData, portMAX_DELAY) == pdPASS)
+        {
+            ESP_LOGI("TASK AL MQTT", "Rec Data: EnvTemperature: %.2f(℃), EnvHumidity: %.2f(%%), ChipTemperature: %.2f(℃), LightIntensity: %d(lm). ", SensorData.EnvironmentTemperature, SensorData.EnvHumidity, SensorData.ChipTemperature, SensorData.LightIntensity);
+            pal_post_property_EnvTemperature(dm_handle, SensorData.EnvironmentTemperature);
+            pal_post_property_EnvHumidity(dm_handle, SensorData.EnvHumidity);
+            pal_post_property_ChipTemperture(dm_handle, SensorData.ChipTemperature);
+            pal_post_property_LightIntensity(dm_handle, SensorData.LightIntensity);
+        }
+        else
+        {
+            ESP_LOGE("TASK AL MQTT", "Rec data failed. ");
+        }
+        // }
+
+        // pal_post_property_EnvTemperature(dm_handle, 12.34);
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+
+    /* 断开MQTT连接, 一般不会运行到这里 */
+    res = aiot_mqtt_disconnect(mqtt_handle);
+    if (res < STATE_SUCCESS)
+    {
+        aiot_mqtt_deinit(&mqtt_handle);
+        aiot_mqtt_deinit(&mqtt_handle);
+        ESP_LOGE("LinkSDK", "aiot_mqtt_disconnect failed: -0x%04lX", -res);
+        // printf("aiot_mqtt_disconnect failed: -0x%04lX\n", -res);
+        // return -1;
+    }
+
+    /* 销毁MQTT实例, 一般不会运行到这里 */
+    res = aiot_mqtt_deinit(&mqtt_handle);
+    if (res < STATE_SUCCESS)
+    {
+        ESP_LOGE("LinkSDK", "aiot_mqtt_deinit failed: -0x%04lX. ", -res);
+        // printf("aiot_mqtt_deinit failed: -0x%04lX\n", -res);
+        // return -1;
+    }
+
+    g_mqtt_process_thread_running = 0;
+    g_mqtt_recv_thread_running = 0;
+    pthread_join(g_mqtt_process_thread, NULL);
+    pthread_join(g_mqtt_recv_thread, NULL);
+}
+
 /* TODO: 如果要关闭日志, 就把这个函数实现为空, 如果要减少日志, 可根据code选择不打印
  *
  * 例如: [1577589489.033][LK-0317] mqtt_basic_demo&a13FN5TplKq
@@ -295,156 +466,6 @@ void *demo_mqtt_recv_thread(void *args)
         }
     }
     return NULL;
-}
-
-void Task_ali_mqqt(void *pvParameters)
-{
-    int32_t res = STATE_SUCCESS;
-    void *mqtt_handle = NULL;
-    char *url = "iot-as-mqtt.cn-shanghai.aliyuncs.com"; /* 阿里云平台上海站点的域名后缀 */
-    char host[100] = {0};                               /* 用这个数组拼接设备连接的云平台站点全地址, 规则是 ${productKey}.iot-as-mqtt.cn-shanghai.aliyuncs.com */
-    uint16_t port = 443;                                /* 无论设备是否使用TLS连接阿里云平台, 目的端口都是443 */
-    uint8_t post_reply = 1;
-    aiot_sysdep_network_cred_t cred; /* 安全凭据结构体, 如果要用TLS, 这个结构体中配置CA证书等参数 */
-
-    /* 配置SDK的底层依赖 */
-    aiot_sysdep_set_portfile(&g_aiot_sysdep_portfile);
-    /* 配置SDK的日志输出 */
-    aiot_state_set_logcb(demo_state_logcb);
-
-    /* 创建SDK的安全凭据, 用于建立TLS连接 */
-    memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
-    cred.option = AIOT_SYSDEP_NETWORK_CRED_SVRCERT_CA; /* 使用RSA证书校验MQTT服务端 */
-    cred.max_tls_fragment = 16384;                     /* 最大的分片长度为16K, 其它可选值还有4K, 2K, 1K, 0.5K */
-    cred.sni_enabled = 1;                              /* TLS建连时, 支持Server Name Indicator */
-    cred.x509_server_cert = ali_ca_cert;               /* 用来验证MQTT服务端的RSA根证书 */
-    cred.x509_server_cert_len = strlen(ali_ca_cert);   /* 用来验证MQTT服务端的RSA根证书长度 */
-
-    /* 创建1个MQTT客户端实例并内部初始化默认参数 */
-    mqtt_handle = aiot_mqtt_init();
-    if (mqtt_handle == NULL)
-    {
-        ESP_LOGE("Task ali MQTT", "aiot_mqtt_init failed");
-    }
-
-    snprintf(host, 100, "%s.%s", product_key, url);
-    /* 配置MQTT服务器地址 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_HOST, (void *)host);
-    /* 配置MQTT服务器端口 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PORT, (void *)&port);
-    /* 配置设备productKey */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_PRODUCT_KEY, (void *)product_key);
-    /* 配置设备deviceName */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_NAME, (void *)device_name);
-    /* 配置设备deviceSecret */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_DEVICE_SECRET, (void *)device_secret);
-    /* 配置网络连接的安全凭据, 上面已经创建好了 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_NETWORK_CRED, (void *)&cred);
-    /* 配置MQTT默认消息接收回调函数 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_RECV_HANDLER, (void *)al_mqtt_recv_handler);
-    /* 配置MQTT事件回调函数 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_EVENT_HANDLER, (void *)al_mqtt_event_handler);
-
-    void *dm_handle = NULL;
-    /* 创建DATA-MODEL实例 */
-    dm_handle = aiot_dm_init();
-    if (dm_handle == NULL)
-    {
-        ESP_LOGE("Task ali MQTT", "aiot_dm_init failed");
-    }
-    /* 配置MQTT实例句柄 */
-    aiot_dm_setopt(dm_handle, AIOT_DMOPT_MQTT_HANDLE, mqtt_handle);
-    /* 配置消息接收处理回调函数 */
-    aiot_dm_setopt(dm_handle, AIOT_DMOPT_RECV_HANDLER, (void *)demo_dm_recv_handler);
-    /* 配置是云端否需要回复post_reply给设备. 如果为1, 表示需要云端回复, 否则表示不回复 */
-    aiot_dm_setopt(dm_handle, AIOT_DMOPT_POST_REPLY, (void *)&post_reply);
-
-    /* 与服务器建立MQTT连接 */
-    res = aiot_mqtt_connect(mqtt_handle);
-    if (res < STATE_SUCCESS)
-    {
-        /* 尝试建立连接失败, 销毁MQTT实例, 回收资源 */
-        aiot_mqtt_deinit(&mqtt_handle);
-        ESP_LOGE("Task ali MQTT", "aiot_mqtt_connect failed: -0x%04lX. ", -res);
-    }
-
-    /* MQTT 订阅topic功能示例, 请根据自己的业务需求进行使用 */
-    // {
-    char *sub_topic = "/ext/ntp/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/response";
-
-    aiot_mqtt_sub(mqtt_handle, "/sys/${YourProductKey}/${YourDeviceName}/thing/event/property/batch/post_reply", NULL, 1, NULL);
-
-    res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
-    if (res < 0)
-    {
-        ESP_LOGE("Task ali MQTT", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
-    }
-    // }
-
-    /* MQTT 发布消息功能示例, 请根据自己的业务需求进行使用 */
-    // {
-    char *pub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/property/post";
-    char *pub_payload = "{\"id\":\"1\",\"version\":\"1.0\",\"params\":{\"LightSwitch\":0}}";
-
-    res = aiot_mqtt_pub(mqtt_handle, pub_topic, (uint8_t *)pub_payload, strlen(pub_payload), 0);
-    if (res < 0)
-    {
-        ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
-    }
-    // }
-
-    /* 创建一个单独的线程, 专用于执行aiot_mqtt_process, 它会自动发送心跳保活, 以及重发QoS1的未应答报文 */
-    g_mqtt_process_thread_running = 1;
-    res = pthread_create(&g_mqtt_process_thread, NULL, demo_mqtt_process_thread, mqtt_handle);
-    if (res < 0)
-    {
-        ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_process_thread failed: %ld. ", res);
-    }
-
-    /* 创建一个单独的线程用于执行aiot_mqtt_recv, 它会循环收取服务器下发的MQTT消息, 并在断线时自动重连 */
-    g_mqtt_recv_thread_running = 1;
-    res = pthread_create(&g_mqtt_recv_thread, NULL, demo_mqtt_recv_thread, mqtt_handle);
-    if (res < 0)
-    {
-        ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_recv_thread failed: %ld. ", res);
-    }
-
-    /* 主循环进入休眠 */
-    while (1)
-    {
-        if (ReceMqttFlag == 1)
-        {
-            ReceMqttFlag = 0;
-        }
-        // pal_post_property_EnvTemperature(dm_handle, 66.66);
-
-        vTaskDelay(60000 / portTICK_PERIOD_MS);
-    }
-
-    /* 断开MQTT连接, 一般不会运行到这里 */
-    res = aiot_mqtt_disconnect(mqtt_handle);
-    if (res < STATE_SUCCESS)
-    {
-        aiot_mqtt_deinit(&mqtt_handle);
-        aiot_mqtt_deinit(&mqtt_handle);
-        ESP_LOGE("LinkSDK", "aiot_mqtt_disconnect failed: -0x%04lX", -res);
-        // printf("aiot_mqtt_disconnect failed: -0x%04lX\n", -res);
-        // return -1;
-    }
-
-    /* 销毁MQTT实例, 一般不会运行到这里 */
-    res = aiot_mqtt_deinit(&mqtt_handle);
-    if (res < STATE_SUCCESS)
-    {
-        ESP_LOGE("LinkSDK", "aiot_mqtt_deinit failed: -0x%04lX. ", -res);
-        // printf("aiot_mqtt_deinit failed: -0x%04lX\n", -res);
-        // return -1;
-    }
-
-    g_mqtt_process_thread_running = 0;
-    g_mqtt_recv_thread_running = 0;
-    pthread_join(g_mqtt_process_thread, NULL);
-    pthread_join(g_mqtt_recv_thread, NULL);
 }
 
 /*

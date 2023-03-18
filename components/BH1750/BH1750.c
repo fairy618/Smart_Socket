@@ -1,32 +1,32 @@
 #include "BH1750.h"
 
-/*
- * @description:
- * @param {void} *pvParameters
- * @return {*}
- */
-void Task_bh1750(void *pvParameters)
-{
-    uint16_t LightData = 0;
+// /*
+//  * @description:
+//  * @param {void} *pvParameters
+//  * @return {*}
+//  */
+// void Task_bh1750(void *pvParameters)
+// {
+//     uint16_t LightData = 0;
 
-    bh1750_power_cmd(BH1750_INS_POWER_ON);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+//     bh1750_power_cmd(BH1750_INS_POWER_ON);
+//     vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    bh1750_power_cmd(BH1750_INS_RESET);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+//     bh1750_power_cmd(BH1750_INS_RESET);
+//     vTaskDelay(50 / portTICK_PERIOD_MS);
 
-    bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+//     bh1750_cnt_meas(BH1750_INS_CNT_H1_MOD);
+//     vTaskDelay(50 / portTICK_PERIOD_MS);
 
-    while (1)
-    {
-        bh1750_read_data(&LightData);
+//     while (1)
+//     {
+//         bh1750_read_data(&LightData);
 
-        ESP_LOGI("BH1750", "The light intensity is %d(lm). ", LightData);
+//         ESP_LOGI("BH1750", "The light intensity is %d(lm). ", LightData);
 
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-    }
-}
+//         vTaskDelay(5000 / portTICK_PERIOD_MS);
+//     }
+// }
 
 /*
  * @description: Control BH1750 to power on, power down, or reset
@@ -85,16 +85,16 @@ esp_err_t bh1750_once_meas(uint8_t meas_mod)
  * @param {uint16_t} *light_data
  * @return {*}
  */
-esp_err_t bh1750_read_data(uint16_t *light_data)
+esp_err_t bh1750_read_data(int *light_data)
 {
     esp_err_t err;
     uint8_t read_buf[2];
 
     err = i2c_master_read_from_device(I2C_MASTER_NUM, BH1750_SENSOR_ADDRESS, read_buf, 2, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 
-    *light_data = (read_buf[0] << 8) | (read_buf[1]);
+    *light_data = (int)((read_buf[0] << 8) | (read_buf[1]));
 
-    *light_data = (uint16_t)(*light_data / 1.2f);
+    *light_data = (int)(*light_data / 1.2f);
 
     return err;
 }

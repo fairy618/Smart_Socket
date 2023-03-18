@@ -211,3 +211,55 @@ int32_t pal_post_property_ChipTemperture(void *dm_handle, float value)
     return aiot_dm_send(dm_handle, &msg);
 }
 
+/**
+ * @brief 上报属性timingFunction到云端
+ * @param dm_handle，dm句柄, 数据类型void *
+ * @return 消息id:(>=1), 上报失败: <0
+ */
+
+int32_t pal_post_property_timingFunction(void *dm_handle, uint8_t value)
+{
+    aiot_dm_msg_t msg;
+    int32_t res;
+    /* TODO: 用户可以在此加入业务逻辑处理代码 */
+
+    char property_payload[64] = {0};
+
+    res = snprintf(property_payload, sizeof(property_payload), "{\"timingFunction\": %d}", value);
+    if (res < 0) {
+        return -1;
+    }
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_PROPERTY_POST;
+    msg.data.property_post.params =  property_payload;
+    
+    return aiot_dm_send(dm_handle, &msg);
+}
+
+/**
+ * @brief 上报属性LightIntensity到云端
+ * @param dm_handle，dm句柄, 数据类型void *
+ * @return 消息id:(>=1), 上报失败: <0
+ */
+
+int32_t pal_post_property_LightIntensity(void *dm_handle, int32_t value)
+{
+    aiot_dm_msg_t msg;
+    int32_t res;
+    /* TODO: 用户可以在此加入业务逻辑处理代码 */
+
+    char property_payload[64] = {0};
+
+    res = snprintf(property_payload, sizeof(property_payload), "{\"LightIntensity\": %ld}", value);
+    if (res < 0) {
+        return -1;
+    }
+
+    memset(&msg, 0, sizeof(aiot_dm_msg_t));
+    msg.type = AIOT_DMMSG_PROPERTY_POST;
+    msg.data.property_post.params =  property_payload;
+    
+    return aiot_dm_send(dm_handle, &msg);
+}
+

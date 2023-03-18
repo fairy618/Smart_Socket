@@ -58,3 +58,17 @@ int32_t pal_post_property_RealTimePower (void *dm_handle, double value);
  */
 
 int32_t pal_post_property_ChipTemperture (void *dm_handle, float value);
+/**
+ * @brief 上报属性timingFunction到云端
+ * @param value 属性timingFunction的值
+ * @param value 属性timingFunction的值，数据类型uint8_t
+ */
+
+int32_t pal_post_property_timingFunction (void *dm_handle, uint8_t value);
+/**
+ * @brief 上报属性LightIntensity到云端
+ * @param value 属性LightIntensity的值
+ * @param value 属性LightIntensity的值，数据类型int32_t
+ */
+
+int32_t pal_post_property_LightIntensity (void *dm_handle, int32_t value);

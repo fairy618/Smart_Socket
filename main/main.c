@@ -32,19 +32,26 @@
 
 void app_main(void)
 {
+    QueueHandle_t xQueueSensor = NULL;
+    xQueueSensor = xQueueCreate(10, sizeof(Sensor_data_t));
+    if (xQueueSensor == NULL)
+    {
+        /* The queue could not be created. */
+    }
+
     int LedTaskBlinkTime = 1000;
+
+    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 2, NULL);
+
+    xTaskCreate(Task_key, "Task_key", 2048, NULL, 1, NULL);
+
+    xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
     WifiConnect();
 
-    xTaskCreate(Task_ali_mqqt, "Task_ali_mqqt", 2048 * 2, NULL, 5, NULL);
+    xTaskCreate(Task_ali_mqqt, "Task_ali_mqqt", 2048 * 2, (void *)xQueueSensor, 5, NULL);
 
-    // xTaskCreate(Task_shtc3, "Task_shtc3", 2048, (void *)&Queue_shtc3_2_mqtt, 2, NULL);
-    xTaskCreate(Task_shtc3, "Task_shtc3", 2048, NULL, 2, NULL);
-    xTaskCreate(Task_bh1750, "Task_bh1750", 2048, NULL, 2, NULL);
+    xTaskCreate(Task_sensor, "Task_sensor", 2048 * 2, (void *)xQueueSensor, 5, NULL);
 
-    xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
     // xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
-
-    xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
-    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 4, NULL);
 }
