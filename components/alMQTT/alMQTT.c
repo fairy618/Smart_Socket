@@ -20,17 +20,50 @@
 #include "cJSON.h"
 #include "alMQTT.h"
 
+/*
+ * @description: wifi connect
+ */
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
-
 static const char *TAG = "wifi station";
-
 static int s_retry_num = 0;
 
-static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+/*
+ * @description: ali mqtt service
+ */
+/* TODO: 替换为自己设备的三元组 */
+char *product_key = "a14U3nfkMWp";
+char *device_name = "4JxiKytRv9OkNx1aB7yX";
+char *device_secret = "49bd91481d65e73e81319bef3fbeb073";
 
-static void event_handler(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data)
+/* 位于portfiles/aiot_port文件夹下的系统适配函数集合 */
+extern aiot_sysdep_portfile_t g_aiot_sysdep_portfile;
+
+/* 位于external/ali_ca_cert.c中的服务器证书 */
+extern const char *ali_ca_cert;
+
+static pthread_t g_mqtt_process_thread;
+static pthread_t g_mqtt_recv_thread;
+static uint8_t g_mqtt_process_thread_running = 0;
+static uint8_t g_mqtt_recv_thread_running = 0;
+
+/*
+ * @description: static function
+ */
+static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+static void demo_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void demo_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void demo_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+
+/*
+ * @description: wifi connect callback function
+ * @param {void} *arg
+ * @param {esp_event_base_t} event_base
+ * @param {int32_t} event_id
+ * @param {void} *event_data
+ * @return {*}
+ */
+static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
@@ -59,9 +92,11 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
-static void demo_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
-static void demo_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
 
+/*
+ * @description: wifi initialization, station model
+ * @return {*}
+ */
 void wifi_init_sta(void)
 {
     s_wifi_event_group = xEventGroupCreate();
@@ -118,32 +153,6 @@ void wifi_init_sta(void)
     vEventGroupDelete(s_wifi_event_group);
 }
 
-/*
- * 这个例程适用于`Linux`这类支持pthread的POSIX设备, 它演示了用SDK配置MQTT参数并建立连接, 之后创建2个线程
- *
- * + 一个线程用于保活长连接
- * + 一个线程用于接收消息, 并在有消息到达时进入默认的数据回调, 在连接状态变化时进入事件回调
- *
- * 需要用户关注或修改的部分, 已经用 TODO 在注释中标明
- *
- */
-
-/* TODO: 替换为自己设备的三元组 */
-char *product_key = "a14U3nfkMWp";
-char *device_name = "4JxiKytRv9OkNx1aB7yX";
-char *device_secret = "49bd91481d65e73e81319bef3fbeb073";
-
-/* 位于portfiles/aiot_port文件夹下的系统适配函数集合 */
-extern aiot_sysdep_portfile_t g_aiot_sysdep_portfile;
-
-/* 位于external/ali_ca_cert.c中的服务器证书 */
-extern const char *ali_ca_cert;
-
-static pthread_t g_mqtt_process_thread;
-static pthread_t g_mqtt_recv_thread;
-static uint8_t g_mqtt_process_thread_running = 0;
-static uint8_t g_mqtt_recv_thread_running = 0;
-
 /* TODO: 如果要关闭日志, 就把这个函数实现为空, 如果要减少日志, 可根据code选择不打印
  *
  * 例如: [1577589489.033][LK-0317] mqtt_basic_demo&a13FN5TplKq
@@ -151,7 +160,6 @@ static uint8_t g_mqtt_recv_thread_running = 0;
  * 上面这条日志的code就是0317(十六进制), code值的定义见core/aiot_state_api.h
  *
  */
-
 /* 日志回调函数, SDK的日志会从这里输出 */
 int32_t demo_state_logcb(int32_t code, char *message)
 {
@@ -161,14 +169,14 @@ int32_t demo_state_logcb(int32_t code, char *message)
 }
 
 /* MQTT事件回调函数, 当网络连接/重连/断开时被触发, 事件定义见core/aiot_mqtt_api.h */
-void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void *userdata)
+void al_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void *userdata)
 {
     switch (event->type)
     {
     /* SDK因为用户调用了aiot_mqtt_connect()接口, 与mqtt服务器建立连接已成功 */
     case AIOT_MQTTEVT_CONNECT:
     {
-        ESP_LOGI("LinkSDK", "AIOT_MQTTEVT_CONNECT. ");
+        ESP_LOGI("al_mqtt_event_handler", "AIOT_MQTTEVT_CONNECT. ");
         // printf("AIOT_MQTTEVT_CONNECT\n");
         /* TODO: 处理SDK建连成功, 不可以在这里调用耗时较长的阻塞函数 */
     }
@@ -177,7 +185,7 @@ void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void 
     /* SDK因为网络状况被动断连后, 自动发起重连已成功 */
     case AIOT_MQTTEVT_RECONNECT:
     {
-        ESP_LOGI("LinkSDK", "AIOT_MQTTEVT_RECONNECT");
+        ESP_LOGI("al_mqtt_event_handler", "AIOT_MQTTEVT_RECONNECT");
         // printf("AIOT_MQTTEVT_RECONNECT\n");
         /* TODO: 处理SDK重连成功, 不可以在这里调用耗时较长的阻塞函数 */
     }
@@ -187,7 +195,7 @@ void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void 
     case AIOT_MQTTEVT_DISCONNECT:
     {
         char *cause = (event->data.disconnect == AIOT_MQTTDISCONNEVT_NETWORK_DISCONNECT) ? ("network disconnect") : ("heartbeat disconnect");
-        ESP_LOGI("LinkSDK", "AIOT_MQTTEVT_DISCONNECT: %s. ", cause);
+        ESP_LOGI("al_mqtt_event_handler", "AIOT_MQTTEVT_DISCONNECT: %s. ", cause);
         // printf("AIOT_MQTTEVT_DISCONNECT: %s\n", cause);
         /* TODO: 处理SDK被动断连, 不可以在这里调用耗时较长的阻塞函数 */
     }
@@ -195,18 +203,19 @@ void demo_mqtt_event_handler(void *handle, const aiot_mqtt_event_t *event, void 
 
     default:
     {
+        ESP_LOGE("al_mqtt_event_handler", "Unkown enent");
     }
     }
 }
 
 /* MQTT默认消息处理回调, 当SDK从服务器收到MQTT消息时, 且无对应用户回调处理时被调用 */
-void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *userdata)
+void al_mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *userdata)
 {
     switch (packet->type)
     {
     case AIOT_MQTTRECV_HEARTBEAT_RESPONSE:
     {
-        ESP_LOGI("LinkSDK", "heartbeat response");
+        ESP_LOGI("al_mqtt_recv_handler", "heartbeat response");
         // printf("heartbeat response\n");
         /* TODO: 处理服务器对心跳的回应, 一般不处理 */
     }
@@ -214,7 +223,7 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
 
     case AIOT_MQTTRECV_SUB_ACK:
     {
-        ESP_LOGI("LinkSDK", "suback, res: -0x%04lX, packet id: %d, max qos: %d", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
+        ESP_LOGI("al_mqtt_recv_handler", "suback, res: -0x%04lX, packet id: %d, max qos: %d", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
         // printf("suback, res: -0x%04lX, packet id: %d, max qos: %d\n", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
         /* TODO: 处理服务器对订阅请求的回应, 一般不处理 */
     }
@@ -222,7 +231,7 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
 
     case AIOT_MQTTRECV_PUB:
     {
-        ESP_LOGI("LinkSDK", "pub, qos: %d, topic: %.*s", packet->data.pub.qos, packet->data.pub.topic_len, packet->data.pub.topic);
+        ESP_LOGI("al_mqtt_recv_handler", "pub, qos: %d, topic: %.*s", packet->data.pub.qos, packet->data.pub.topic_len, packet->data.pub.topic);
         printf("\n\n*******************************************\npub, payload: %.*s\n", (int)(packet->data.pub.payload_len), packet->data.pub.payload);
         // printf("pub, payload: %.*s\n",  packet->data.pub.payload);
         /* TODO: 处理服务器下发的业务报文 */
@@ -275,7 +284,7 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
 
     case AIOT_MQTTRECV_PUB_ACK:
     {
-        ESP_LOGI("LinkSDK", "puback, packet id: %d. ", packet->data.pub_ack.packet_id);
+        ESP_LOGI("al_mqtt_recv_handler", "puback, packet id: %d. ", packet->data.pub_ack.packet_id);
         // printf("puback, packet id: %d\n", packet->data.pub_ack.packet_id);
         /* TODO: 处理服务器对QoS1上报消息的回应, 一般不处理 */
     }
@@ -283,6 +292,7 @@ void demo_mqtt_default_recv_handler(void *handle, const aiot_mqtt_recv_t *packet
 
     default:
     {
+        ESP_LOGE("al_mqtt_recv_handler", "Unknown recv data");
     }
     }
 }
@@ -351,18 +361,8 @@ void Task_ali_mqqt(void *pvParameters)
     mqtt_handle = aiot_mqtt_init();
     if (mqtt_handle == NULL)
     {
-        ESP_LOGE("LinkSDK", "aiot_mqtt_init failed");
-        // printf("aiot_mqtt_init failed\n");
-        // return -1;
+        ESP_LOGE("Task ali MQTT", "aiot_mqtt_init failed");
     }
-
-    /* TODO: 如果以下代码不被注释, 则例程会用TCP而不是TLS连接云平台 */
-    /*
-    {
-        memset(&cred, 0, sizeof(aiot_sysdep_network_cred_t));
-        cred.option = AIOT_SYSDEP_NETWORK_CRED_NONE;
-    }
-    */
 
     snprintf(host, 100, "%s.%s", product_key, url);
     /* 配置MQTT服务器地址 */
@@ -378,28 +378,23 @@ void Task_ali_mqqt(void *pvParameters)
     /* 配置网络连接的安全凭据, 上面已经创建好了 */
     aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_NETWORK_CRED, (void *)&cred);
     /* 配置MQTT默认消息接收回调函数 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_RECV_HANDLER, (void *)demo_mqtt_default_recv_handler);
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_RECV_HANDLER, (void *)al_mqtt_recv_handler);
     /* 配置MQTT事件回调函数 */
-    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_EVENT_HANDLER, (void *)demo_mqtt_event_handler);
+    aiot_mqtt_setopt(mqtt_handle, AIOT_MQTTOPT_EVENT_HANDLER, (void *)al_mqtt_event_handler);
 
     void *dm_handle = NULL;
+    /* 创建DATA-MODEL实例 */
+    dm_handle = aiot_dm_init();
+    if (dm_handle == NULL)
     {
-
-        /* 创建DATA-MODEL实例 */
-        dm_handle = aiot_dm_init();
-        if (dm_handle == NULL)
-        {
-            ESP_LOGE("ALI MQTT", "aiot_dm_init failed");
-            // return -1;
-        }
-        /* 配置MQTT实例句柄 */
-        aiot_dm_setopt(dm_handle, AIOT_DMOPT_MQTT_HANDLE, mqtt_handle);
-        /* 配置消息接收处理回调函数 */
-        aiot_dm_setopt(dm_handle, AIOT_DMOPT_RECV_HANDLER, (void *)demo_dm_recv_handler);
-
-        /* 配置是云端否需要回复post_reply给设备. 如果为1, 表示需要云端回复, 否则表示不回复 */
-        aiot_dm_setopt(dm_handle, AIOT_DMOPT_POST_REPLY, (void *)&post_reply);
+        ESP_LOGE("Task ali MQTT", "aiot_dm_init failed");
     }
+    /* 配置MQTT实例句柄 */
+    aiot_dm_setopt(dm_handle, AIOT_DMOPT_MQTT_HANDLE, mqtt_handle);
+    /* 配置消息接收处理回调函数 */
+    aiot_dm_setopt(dm_handle, AIOT_DMOPT_RECV_HANDLER, (void *)demo_dm_recv_handler);
+    /* 配置是云端否需要回复post_reply给设备. 如果为1, 表示需要云端回复, 否则表示不回复 */
+    aiot_dm_setopt(dm_handle, AIOT_DMOPT_POST_REPLY, (void *)&post_reply);
 
     /* 与服务器建立MQTT连接 */
     res = aiot_mqtt_connect(mqtt_handle);
@@ -407,8 +402,7 @@ void Task_ali_mqqt(void *pvParameters)
     {
         /* 尝试建立连接失败, 销毁MQTT实例, 回收资源 */
         aiot_mqtt_deinit(&mqtt_handle);
-        ESP_LOGE("LinkSDK", "aiot_mqtt_connect failed: -0x%04lX. ", -res);
-        // return -1;
+        ESP_LOGE("Task ali MQTT", "aiot_mqtt_connect failed: -0x%04lX. ", -res);
     }
 
     /* MQTT 订阅topic功能示例, 请根据自己的业务需求进行使用 */
@@ -422,8 +416,7 @@ void Task_ali_mqqt(void *pvParameters)
         res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
         if (res < 0)
         {
-            ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
-            // return -1;
+            ESP_LOGE("Task ali MQTT", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
         }
     }
 
@@ -468,7 +461,7 @@ void Task_ali_mqqt(void *pvParameters)
         pal_post_property_EnvTemperature(dm_handle, 66.66);
         // sleep(1);
 
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 
     /* 断开MQTT连接, 一般不会运行到这里 */
@@ -548,7 +541,7 @@ static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, vo
     /* 属性设置 */
     case AIOT_DMRECV_PROPERTY_SET:
     {
-        // demo_dm_recv_property_set(dm_handle, recv, userdata);
+        demo_dm_recv_property_set(dm_handle, recv, userdata);
     }
     break;
 
@@ -677,4 +670,75 @@ int32_t pal_post_property_EnvTemperature(void *dm_handle, float value)
     msg.data.property_post.params = property_payload;
 
     return aiot_dm_send(dm_handle, &msg);
+}
+
+static void demo_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+{
+    ESP_LOGE("demo_dm_recv_property_set", "###########################################################################################");
+    printf("demo_dm_recv_property_set msg_id = %ld, params = %.*s\r\n",
+           (unsigned long)recv->data.property_set.msg_id,
+           (int)(recv->data.property_set.params_len),
+           recv->data.property_set.params);
+    ESP_LOGI("demo_dm_recv_property_set", "%s", recv->data.property_set.params);
+
+    // printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+    // // printf("DATA=%.*s\r\n", event->data_len, event->data);
+
+    cJSON *json = cJSON_ParseWithLength(recv->data.property_set.params, (int)(recv->data.property_set.params_len));
+    // const cJSON *method;
+    // method = cJSON_GetObjectItem(json, "method");
+    // if (cJSON_IsString(method) && (method->valuestring != NULL))
+    // {
+    // if (strcmp("thing.service.property.set", method->valuestring) == 0)
+    // {
+    // cJSON *params = cJSON_GetObjectItem(json, "params");
+    // cJSON *result = cJSON_CreateObject();
+    // cJSON_AddItemToObject(result, "params", params);
+    // cJSON_AddItemReferenceToObject(result, "params", params);
+    cJSON *powerstate = cJSON_GetObjectItem(json, "powerstate");
+    if (cJSON_IsNumber(powerstate))
+    {
+        if (powerstate->valueint == 0)
+        {
+            // led_off();
+            ESP_LOGI("cJSON TEST", "powerstate = 0");
+        }
+        else
+        {
+            ESP_LOGI("cJSON TEST", "powerstate = 1");
+            // led_on();
+        }
+    }
+
+    // char *result_string = cJSON_PrintUnformatted(result);
+
+    // cJSON_Delete(result);
+    // esp_mqtt_client_publish(client, "/sys/a1gFEcNBZwC/aaaa/thing/event/property/post",
+    //                         result_string,
+    //                         strlen(result_string),
+    //                         0, 0);
+    // printf("%s\n", result_string);
+    // cJSON_free(result_string);
+    // }
+    // }
+    cJSON_Delete(json);
+    // }
+
+    /* TODO: 以下代码演示如何对来自云平台的属性设置指令进行应答, 用户可取消注释查看演示效果 */
+    // /*
+    {
+        aiot_dm_msg_t msg;
+
+        memset(&msg, 0, sizeof(aiot_dm_msg_t));
+        msg.type = AIOT_DMMSG_PROPERTY_SET_REPLY;
+        msg.data.property_set_reply.msg_id = recv->data.property_set.msg_id;
+        msg.data.property_set_reply.code = 200;
+        msg.data.property_set_reply.data = "{}";
+        int32_t res = aiot_dm_send(dm_handle, &msg);
+        if (res < 0)
+        {
+            printf("aiot_dm_send failed\r\n");
+        }
+    }
+    // */
 }

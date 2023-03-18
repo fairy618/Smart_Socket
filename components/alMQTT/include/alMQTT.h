@@ -6,10 +6,12 @@
 #include "aiot_mqtt_api.h"
 #include "aiot_dm_api.h"
 
-#define WIFI_SSID_ "ChinaNet-xcYb"
-#define WIFI_PASSWORD_ "pvg249cs"
-// #define WIFI_SSID_ "fairy"
-// #define WIFI_PASSWORD_ "12345678"
+// #define WIFI_SSID_ "Hirain"
+// #define WIFI_PASSWORD_ "SZhirain01"
+// #define WIFI_SSID_ "ChinaNet-xcYb"
+// #define WIFI_PASSWORD_ "pvg249cs"
+#define WIFI_SSID_ "fairy"
+#define WIFI_PASSWORD_ "12345678"
 #define WIFI_MAXIMUM_RETRY_ 5
 
 /* The event group allows multiple bits for each event, but we only care about two events:
@@ -32,7 +34,6 @@ int32_t demo_send_property_batch_post(void *dm_handle, char *params);
 int32_t demo_send_event_post(void *dm_handle, char *event_id, char *params);
 int32_t demo_send_get_desred_requset(void *dm_handle);
 int32_t demo_send_delete_desred_requset(void *dm_handle);
-int32_t pal_post_property_EnvTemperature(void *dm_handle, float value)
-;
+int32_t pal_post_property_EnvTemperature(void *dm_handle, float value);
 
 #endif /*_ALI_MQQT_H_*/
