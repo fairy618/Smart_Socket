@@ -22,20 +22,20 @@
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
 
+#include "mqtt_client.h"
+
 #include "BH1750.h"
 #include "SHTC3.h"
 #include "HLW032.h"
 #include "BasicDrive.h"
 #include "alMQTT.h"
 
-#define BUFFER_SIZE 512
-
 void app_main(void)
 {
-    static char cBuffer[BUFFER_SIZE];
     int LedTaskBlinkTime = 1000;
 
     WifiConnect();
+
     xTaskCreate(Task_ali_mqqt, "Task_ali_mqqt", 2048 * 2, NULL, 5, NULL);
 
     // xTaskCreate(Task_shtc3, "Task_shtc3", 2048, (void *)&Queue_shtc3_2_mqtt, 2, NULL);
@@ -47,13 +47,4 @@ void app_main(void)
 
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 3, NULL);
     xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 4, NULL);
-
-    xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 4096, NULL, 10, NULL);
-
-    while (1)
-    {
-        // vTaskList(cBuffer);
-        // printf("%s\n", cBuffer);
-        // vTaskDelay(10000 / portTICK_PERIOD_MS);
-    }
 }
