@@ -79,3 +79,55 @@
     "message": "success",
     "version": "1.0"
 },device={},scriptData={},useTime=0,traceId=a9fef01416790636488606839d006a
+
+2023-03-18 11: 57: 45.133,
+66B07C48538140908F8D9B4AFAB01A11, upstream - bizType=PROPERTY_REPORT,params={
+    "alinkSysConfig": {
+        "ack": 1
+    },
+    "aliyunPk": "1577497397656174",
+    "device": {
+        "aliyunCommodityCode": "iothub_senior",
+        "deviceKey": "4JxiKytRv9OkNx1aB7yX",
+        "deviceSecret": "***",
+        "gmtCreate": 1678614714000,
+        "gmtModified": 1678615012000,
+        "instanceId": "iotx-oxssharez200",
+        "iotId": "4JxiKytRv9OkNx1aB7yX000000",
+        "name": "4JxiKytRv9OkNx1aB7yX",
+        "nickname": "插座01",
+        "productKey": "a14U3nfkMWp",
+        "rbacTenantId": "66B07C48538140908F8D9B4AFAB01A11",
+        "status": 0,
+        "thingType": "DEVICE"
+    },
+    "id": "89",
+    "iotId": "4JxiKytRv9OkNx1aB7yX000000",
+    "method": "thing.event.property.post",
+    "params": {
+        "EnvTemperature": 66.660004
+    },
+    "proxyName": "thing.event.property.post",
+    "topic": "/sys/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/thing/event/property/post",
+    "uniMsgId": "1636939922781383680",
+    "version": "1.0"
+},result=code: 200,message:success,topic=/sys/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/thing/event/property/post,response={
+    "code": 200,
+    "data": {},
+    "id": "89",
+    "message": "success",
+    "version": "1.0"
+},device={},scriptData={},useTime=0,traceId=a9fef00516791118651197750d006b
+
+
+{
+    "RGBColor": {
+        "Red": 123,
+        "Blue": 123,
+        "Green": 123
+    },
+    "Timer_Quantum": "来自云端",
+    "sleepOnOff": 1,
+    "timingFunction": 0,
+    "powerstate": 1
+}

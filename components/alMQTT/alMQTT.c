@@ -20,6 +20,8 @@
 #include "cJSON.h"
 #include "alMQTT.h"
 
+#include "pal_prop_post_api.h"
+
 /*
  * @description: wifi connect
  */
@@ -50,11 +52,11 @@ static uint8_t g_mqtt_recv_thread_running = 0;
 /*
  * @description: static function
  */
+static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void al_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void al_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
+static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
-static void demo_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
-static void demo_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
-static void demo_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata);
-
 /*
  * @description: wifi connect callback function
  * @param {void} *arg
@@ -216,7 +218,6 @@ void al_mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *us
     case AIOT_MQTTRECV_HEARTBEAT_RESPONSE:
     {
         ESP_LOGI("al_mqtt_recv_handler", "heartbeat response");
-        // printf("heartbeat response\n");
         /* TODO: 处理服务器对心跳的回应, 一般不处理 */
     }
     break;
@@ -224,7 +225,6 @@ void al_mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *us
     case AIOT_MQTTRECV_SUB_ACK:
     {
         ESP_LOGI("al_mqtt_recv_handler", "suback, res: -0x%04lX, packet id: %d, max qos: %d", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
-        // printf("suback, res: -0x%04lX, packet id: %d, max qos: %d\n", -packet->data.sub_ack.res, packet->data.sub_ack.packet_id, packet->data.sub_ack.max_qos);
         /* TODO: 处理服务器对订阅请求的回应, 一般不处理 */
     }
     break;
@@ -232,60 +232,13 @@ void al_mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *us
     case AIOT_MQTTRECV_PUB:
     {
         ESP_LOGI("al_mqtt_recv_handler", "pub, qos: %d, topic: %.*s", packet->data.pub.qos, packet->data.pub.topic_len, packet->data.pub.topic);
-        printf("\n\n*******************************************\npub, payload: %.*s\n", (int)(packet->data.pub.payload_len), packet->data.pub.payload);
-        // printf("pub, payload: %.*s\n",  packet->data.pub.payload);
         /* TODO: 处理服务器下发的业务报文 */
-
-        printf("\n\n###########################################\n%s\n\n", packet->data.pub.topic);
-
-        //  printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        //         printf("DATA=%.*s\r\n", event->data_len, event->data);
-        //         if (memcmp("/sys/a1gFEcNBZwC/aaaa/thing/service/property/set", event->topic, event->topic_len) == 0)
-        //         {
-        //             cJSON *json = cJSON_ParseWithLength(event->data, event->data_len);
-        //             const cJSON *method;
-        //             method = cJSON_GetObjectItem(json, "method");
-        //             if (cJSON_IsString(method) && (method->valuestring != NULL))
-        //             {
-        //                 if (strcmp("thing.service.property.set", method->valuestring) == 0)
-        //                 {
-        //                     cJSON *params = cJSON_GetObjectItem(json, "params");
-        //                     cJSON *result = cJSON_CreateObject();
-        //                     //                        cJSON_AddItemToObject(result, "params", params);
-        //                     cJSON_AddItemReferenceToObject(result, "params", params);
-        //                     cJSON *powerstate = cJSON_GetObjectItem(params, "powerstate");
-        //                     if (cJSON_IsNumber(powerstate))
-        //                     {
-        //                         if (powerstate->valueint == 0)
-        //                         {
-        //                             led_off();
-        //                         }
-        //                         else
-        //                         {
-        //                             led_on();
-        //                         }
-        //                     }
-
-        //                     char *result_string = cJSON_PrintUnformatted(result);
-
-        //                     cJSON_Delete(result);
-        //                     esp_mqtt_client_publish(client, "/sys/a1gFEcNBZwC/aaaa/thing/event/property/post",
-        //                                             result_string,
-        //                                             strlen(result_string),
-        //                                             0, 0);
-        //                     printf("%s\n", result_string);
-        //                     cJSON_free(result_string);
-        //                 }
-        //             }
-        //             cJSON_Delete(json);
-        //         }
     }
     break;
 
     case AIOT_MQTTRECV_PUB_ACK:
     {
         ESP_LOGI("al_mqtt_recv_handler", "puback, packet id: %d. ", packet->data.pub_ack.packet_id);
-        // printf("puback, packet id: %d\n", packet->data.pub_ack.packet_id);
         /* TODO: 处理服务器对QoS1上报消息的回应, 一般不处理 */
     }
     break;
@@ -406,33 +359,29 @@ void Task_ali_mqqt(void *pvParameters)
     }
 
     /* MQTT 订阅topic功能示例, 请根据自己的业务需求进行使用 */
+    // {
+    char *sub_topic = "/ext/ntp/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/response";
+
+    aiot_mqtt_sub(mqtt_handle, "/sys/${YourProductKey}/${YourDeviceName}/thing/event/property/batch/post_reply", NULL, 1, NULL);
+
+    res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
+    if (res < 0)
     {
-        // char *sub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/+/post_reply";
-        char *sub_topic = "/ext/ntp/a14U3nfkMWp/4JxiKytRv9OkNx1aB7yX/response";
-
-        aiot_mqtt_sub(mqtt_handle, "/sys/${YourProductKey}/${YourDeviceName}/thing/event/property/batch/post_reply", NULL, 1,
-                      NULL);
-
-        res = aiot_mqtt_sub(mqtt_handle, sub_topic, NULL, 1, NULL);
-        if (res < 0)
-        {
-            ESP_LOGE("Task ali MQTT", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
-        }
+        ESP_LOGE("Task ali MQTT", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
     }
+    // }
 
     /* MQTT 发布消息功能示例, 请根据自己的业务需求进行使用 */
-    {
-        char *pub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/property/post";
-        char *pub_payload = "{\"id\":\"1\",\"version\":\"1.0\",\"params\":{\"LightSwitch\":0}}";
+    // {
+    char *pub_topic = "/sys/a13FN5TplKq/mqtt_basic_demo/thing/event/property/post";
+    char *pub_payload = "{\"id\":\"1\",\"version\":\"1.0\",\"params\":{\"LightSwitch\":0}}";
 
-        res = aiot_mqtt_pub(mqtt_handle, pub_topic, (uint8_t *)pub_payload, strlen(pub_payload), 0);
-        if (res < 0)
-        {
-            ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
-            // printf("aiot_mqtt_sub failed, res: -0x%04lX\n", -res);
-            // return -1;
-        }
+    res = aiot_mqtt_pub(mqtt_handle, pub_topic, (uint8_t *)pub_payload, strlen(pub_payload), 0);
+    if (res < 0)
+    {
+        ESP_LOGE("LinkSDK", "aiot_mqtt_sub failed, res: -0x%04lX. ", -res);
     }
+    // }
 
     /* 创建一个单独的线程, 专用于执行aiot_mqtt_process, 它会自动发送心跳保活, 以及重发QoS1的未应答报文 */
     g_mqtt_process_thread_running = 1;
@@ -440,8 +389,6 @@ void Task_ali_mqqt(void *pvParameters)
     if (res < 0)
     {
         ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_process_thread failed: %ld. ", res);
-        // printf("pthread_create demo_mqtt_process_thread failed: %ld\n", res);
-        // return -1;
     }
 
     /* 创建一个单独的线程用于执行aiot_mqtt_recv, 它会循环收取服务器下发的MQTT消息, 并在断线时自动重连 */
@@ -450,16 +397,12 @@ void Task_ali_mqqt(void *pvParameters)
     if (res < 0)
     {
         ESP_LOGE("LinkSDK", "pthread_create demo_mqtt_recv_thread failed: %ld. ", res);
-        // printf("pthread_create demo_mqtt_recv_thread failed: %ld\n", res);
-        // return -1;
     }
 
     /* 主循环进入休眠 */
     while (1)
     {
-        // demo_send_property_post(dm_handle, "{\"LightSwitch\": 0}");
         pal_post_property_EnvTemperature(dm_handle, 66.66);
-        // sleep(1);
 
         vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
@@ -488,10 +431,12 @@ void Task_ali_mqqt(void *pvParameters)
     g_mqtt_recv_thread_running = 0;
     pthread_join(g_mqtt_process_thread, NULL);
     pthread_join(g_mqtt_recv_thread, NULL);
-
-    // return 0;
 }
 
+/*
+ * @description: connect to wifi, think about if call "nvs_flash_init()"
+ * @return {*}
+ */
 void WifiConnect(void)
 {
     // Initialize NVS
@@ -505,10 +450,6 @@ void WifiConnect(void)
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
-
-    // /* start linkkit mqtt */
-    // ESP_LOGI(TAG, "Start linkkit mqtt");
-    // linkkit_main();
 }
 
 /* 属性上报函数演示 */
@@ -541,7 +482,7 @@ static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, vo
     /* 属性设置 */
     case AIOT_DMRECV_PROPERTY_SET:
     {
-        demo_dm_recv_property_set(dm_handle, recv, userdata);
+        al_dm_recv_property_set(dm_handle, recv, userdata);
     }
     break;
 
@@ -569,14 +510,14 @@ static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, vo
     /* 二进制格式的同步服务调用, 比单纯的二进制数据消息多了个rrpc_id */
     case AIOT_DMRECV_RAW_SYNC_SERVICE_INVOKE:
     {
-        // demo_dm_recv_raw_sync_service_invoke(dm_handle, recv, userdata);
+        // al_dm_recv_raw_sync_service_invoke(dm_handle, recv, userdata);
     }
     break;
 
     /* 上行二进制数据后, 云端的回复报文 */
     case AIOT_DMRECV_RAW_DATA_REPLY:
     {
-        // demo_dm_recv_raw_data_reply(dm_handle, recv, userdata);
+        // al_dm_recv_raw_data_reply(dm_handle, recv, userdata);
     }
     break;
 
@@ -585,7 +526,7 @@ static void demo_dm_recv_handler(void *dm_handle, const aiot_dm_recv_t *recv, vo
     }
 }
 
-int32_t demo_send_property_batch_post(void *dm_handle, char *params)
+int32_t al_send_property_batch_post(void *dm_handle, char *params)
 {
     aiot_dm_msg_t msg;
 
@@ -597,7 +538,7 @@ int32_t demo_send_property_batch_post(void *dm_handle, char *params)
 }
 
 /* 事件上报函数演示 */
-int32_t demo_send_event_post(void *dm_handle, char *event_id, char *params)
+int32_t al_send_event_post(void *dm_handle, char *event_id, char *params)
 {
     aiot_dm_msg_t msg;
 
@@ -610,7 +551,7 @@ int32_t demo_send_event_post(void *dm_handle, char *event_id, char *params)
 }
 
 /* 演示了获取属性LightSwitch的期望值, 用户可将此函数加入到main函数中运行演示 */
-int32_t demo_send_get_desred_requset(void *dm_handle)
+int32_t al_send_get_desred_requset(void *dm_handle)
 {
     aiot_dm_msg_t msg;
 
@@ -622,7 +563,7 @@ int32_t demo_send_get_desred_requset(void *dm_handle)
 }
 
 /* 演示了删除属性LightSwitch的期望值, 用户可将此函数加入到main函数中运行演示 */
-int32_t demo_send_delete_desred_requset(void *dm_handle)
+int32_t al_send_delete_desred_requset(void *dm_handle)
 {
     aiot_dm_msg_t msg;
 
@@ -633,56 +574,23 @@ int32_t demo_send_delete_desred_requset(void *dm_handle)
     return aiot_dm_send(dm_handle, &msg);
 }
 
-static void demo_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+/* 上行二进制数据后, 云端的回复报文 */
+static void al_dm_recv_raw_data_reply(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
 {
-    printf("demo_dm_recv_raw_data_reply receive reply for up_raw msg, data len = %ld\r\n", recv->data.raw_data.data_len);
+    printf("al_dm_recv_raw_data_reply receive reply for up_raw msg, data len = %ld\r\n", recv->data.raw_data.data_len);
     /* TODO: 用户处理下行的二进制数据, 位于recv->data.raw_data.data中 */
 }
 
-static void demo_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
+/* 二进制格式的同步服务调用, 比单纯的二进制数据消息多了个rrpc_id */
+static void al_dm_recv_raw_sync_service_invoke(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
 {
-    printf("demo_dm_recv_raw_sync_service_invoke raw sync service rrpc_id = %s, data_len = %ld\r\n",
-           recv->data.raw_service_invoke.rrpc_id,
-           recv->data.raw_service_invoke.data_len);
+    printf("al_dm_recv_raw_sync_service_invoke raw sync service rrpc_id = %s, data_len = %ld\r\n", recv->data.raw_service_invoke.rrpc_id, recv->data.raw_service_invoke.data_len);
 }
 
-/**
- * @brief 上报属性EnvTemperature到云端
- * @param dm_handle，dm句柄, 数据类型void *
- * @return 消息id:(>=1), 上报失败: <0
- */
-int32_t pal_post_property_EnvTemperature(void *dm_handle, float value)
+/* 属性设置 */
+static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
 {
-    aiot_dm_msg_t msg;
-    int32_t res;
-    /* TODO: 用户可以在此加入业务逻辑处理代码 */
-
-    char property_payload[128] = {0};
-
-    res = snprintf(property_payload, sizeof(property_payload), "{\"EnvTemperature\": %f}", value);
-    if (res < 0)
-    {
-        return -1;
-    }
-
-    memset(&msg, 0, sizeof(aiot_dm_msg_t));
-    msg.type = AIOT_DMMSG_PROPERTY_POST;
-    msg.data.property_post.params = property_payload;
-
-    return aiot_dm_send(dm_handle, &msg);
-}
-
-static void demo_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv, void *userdata)
-{
-    ESP_LOGE("demo_dm_recv_property_set", "###########################################################################################");
-    printf("demo_dm_recv_property_set msg_id = %ld, params = %.*s\r\n",
-           (unsigned long)recv->data.property_set.msg_id,
-           (int)(recv->data.property_set.params_len),
-           recv->data.property_set.params);
-    ESP_LOGI("demo_dm_recv_property_set", "%s", recv->data.property_set.params);
-
-    // printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-    // // printf("DATA=%.*s\r\n", event->data_len, event->data);
+    ESP_LOGI("al_dm_recv_property_set", " msg_id = %ld, params = )%.*s(", (unsigned long)recv->data.property_set.msg_id, (int)(recv->data.property_set.params_len), recv->data.property_set.params);
 
     cJSON *json = cJSON_ParseWithLength(recv->data.property_set.params, (int)(recv->data.property_set.params_len));
     // const cJSON *method;
@@ -695,21 +603,77 @@ static void demo_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *rec
     // cJSON *result = cJSON_CreateObject();
     // cJSON_AddItemToObject(result, "params", params);
     // cJSON_AddItemReferenceToObject(result, "params", params);
+
+    /*
+
+     {
+        "RGBColor":{"Red":123,"Blue":123,"Green":123},
+        "Timer_Quantum":"来自云端",
+        "sleepOnOff":1,
+        "timingFunction":0,
+        "powerstate":1}
+
+    */
+
+    cJSON *RGBColor = cJSON_GetObjectItem(json, "RGBColor");
+    if (cJSON_IsObject(RGBColor))
+    {
+        ESP_LOGI("cJSON TEST", "cJSON_IsObject");
+
+        cJSON *Red = cJSON_GetObjectItem(RGBColor, "Red");
+        cJSON *Blue = cJSON_GetObjectItem(RGBColor, "Blue");
+        cJSON *Green = cJSON_GetObjectItem(RGBColor, "Green");
+
+        if (cJSON_IsNumber(Red) && cJSON_IsNumber(Blue) && cJSON_IsNumber(Green))
+        {
+            ESP_LOGI("cJSON TEST", "RGB: %d-%d-%d", Red->valueint, Blue->valueint, Green->valueint);
+        }
+    }
+
     cJSON *powerstate = cJSON_GetObjectItem(json, "powerstate");
     if (cJSON_IsNumber(powerstate))
     {
         if (powerstate->valueint == 0)
         {
-            // led_off();
             ESP_LOGI("cJSON TEST", "powerstate = 0");
         }
         else
         {
             ESP_LOGI("cJSON TEST", "powerstate = 1");
-            // led_on();
         }
     }
 
+    cJSON *Timer_Quantum = cJSON_GetObjectItem(json, "Timer_Quantum");
+    if (cJSON_IsString(Timer_Quantum))
+    {
+        ESP_LOGI("cJSON TEST", "Timer_Quantum = %s", Timer_Quantum->valuestring);
+    }
+
+    cJSON *sleepOnOff = cJSON_GetObjectItem(json, "sleepOnOff");
+    if (cJSON_IsNumber(sleepOnOff))
+    {
+        if (sleepOnOff->valueint == 0)
+        {
+            ESP_LOGI("cJSON TEST", "sleepOnOff = 0");
+        }
+        else
+        {
+            ESP_LOGI("cJSON TEST", "sleepOnOff = 1");
+        }
+    }
+
+    cJSON *timingFunction = cJSON_GetObjectItem(json, "timingFunction");
+    if (cJSON_IsNumber(timingFunction))
+    {
+        if (timingFunction->valueint == 0)
+        {
+            ESP_LOGI("cJSON TEST", "timingFunction = 0");
+        }
+        else
+        {
+            ESP_LOGI("cJSON TEST", "timingFunction = 1");
+        }
+    }
     // char *result_string = cJSON_PrintUnformatted(result);
 
     // cJSON_Delete(result);

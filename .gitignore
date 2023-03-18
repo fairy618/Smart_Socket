@@ -56,3 +56,4 @@ dkms.conf
 sdkconfig.old
 /build/*
 /.vscode/*
+main.json
