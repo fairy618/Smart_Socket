@@ -1,6 +1,18 @@
 #ifndef _DRIVER_BH1750_H_
 #define _DRIVER_BH1750_H_
 
+#include <stdio.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+
+#include "driver/gpio.h"
+#include "driver/i2c.h"
+
+#include "esp_log.h"
+#include "esp_err.h"
+
 #define I2C_MASTER_NUM 0 /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
 #define I2C_MASTER_TIMEOUT_MS 1000
 #define BH1750_SENSOR_ADDRESS 0x23

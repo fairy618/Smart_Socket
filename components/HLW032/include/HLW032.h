@@ -1,6 +1,19 @@
 #ifndef _DRIVER_HLW8032_H_
 #define _DRIVER_HLW8032_H_
 
+#include <stdio.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+
+#include "driver/gpio.h"
+#include "driver/uart.h"
+
+#include "esp_log.h"
+#include "esp_err.h"
+
 #define GET_BIT(x, bit) ((x & (0x01 << bit)) >> bit) /* 获取第bit位 */
 
 #define GPIO_NUM_HLW8032_TX (GPIO_NUM_0)

@@ -1,13 +1,42 @@
 #ifndef _ALI_MQQT_H_
 #define _ALI_MQQT_H_
 
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+
+#include "freertos/event_groups.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "freertos/queue.h"
+#include "freertos/timers.h"
+
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "esp_event.h"
+#include "esp_netif.h"
+
+#include "nvs_flash.h"
+
+#include "lwip/err.h"
+#include "lwip/sys.h"
+#include "lwip/sockets.h"
+#include "lwip/dns.h"
+#include "lwip/netdb.h"
+
+#include "cJSON.h"
+
+#include "pal_prop_post_api.h"
+
 #include "aiot_state_api.h"
 #include "aiot_sysdep_api.h"
 #include "aiot_mqtt_api.h"
 #include "aiot_dm_api.h"
 
-// #define WIFI_SSID_ "Hirain"
-// #define WIFI_PASSWORD_ "SZhirain01"
 // #define WIFI_SSID_ "ChinaNet-xcYb"
 // #define WIFI_PASSWORD_ "pvg249cs"
 #define WIFI_SSID_ "fairy"
@@ -19,6 +48,27 @@
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
+
+typedef struct
+{
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+} rgb_data_t;
+
+typedef struct
+{
+    rgb_data_t RGBColor;
+    char *Timer_Quantum;
+    bool sleepOnOff;
+    bool timingFunction;
+    bool powerstate;
+    bool RGBColorFlag;
+    bool Timer_QuantumFlag;
+    bool sleepOnOffFlag;
+    bool timingFunctionFlag;
+    bool powerstateFlag;
+} alMQTT_data_t;
 
 int32_t al_send_delete_desred_requset(void *dm_handle);
 int32_t al_send_get_desred_requset(void *dm_handle);

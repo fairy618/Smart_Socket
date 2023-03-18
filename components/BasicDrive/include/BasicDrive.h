@@ -1,6 +1,20 @@
 #ifndef _DRIVER_BASICDRIVE_H_
 #define _DRIVER_BASICDRIVE_H_
 
+#include <stdio.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+
+#include "driver/ledc.h"
+#include "driver/gpio.h"
+#include "driver/rmt_tx.h"
+
+#include "esp_log.h"
+#include "esp_err.h"
+
 #define GPIO_NUM_RELAY_PWM 4
 #define GPIO_NUM_WS2812_DAT 10
 #define GPIO_NUM_LED 19

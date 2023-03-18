@@ -1,27 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_log.h"
-
-#include "nvs_flash.h"
-
-#include "lwip/err.h"
-#include "lwip/sys.h"
-
-#include "cJSON.h"
 #include "alMQTT.h"
-
-#include "pal_prop_post_api.h"
-
 /*
  * @description: wifi connect
  */
@@ -48,6 +25,12 @@ static pthread_t g_mqtt_process_thread;
 static pthread_t g_mqtt_recv_thread;
 static uint8_t g_mqtt_process_thread_running = 0;
 static uint8_t g_mqtt_recv_thread_running = 0;
+
+/*
+ * @description: user
+ */
+bool ReceMqttFlag = 0;
+alMQTT_data_t alMQTT_data;
 
 /*
  * @description: static function
@@ -402,6 +385,10 @@ void Task_ali_mqqt(void *pvParameters)
     /* 主循环进入休眠 */
     while (1)
     {
+        if (ReceMqttFlag)
+        {
+            ReceMqttFlag = 0;
+        }
         pal_post_property_EnvTemperature(dm_handle, 66.66);
 
         vTaskDelay(60000 / portTICK_PERIOD_MS);
@@ -593,27 +580,6 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     ESP_LOGI("al_dm_recv_property_set", " msg_id = %ld, params = )%.*s(", (unsigned long)recv->data.property_set.msg_id, (int)(recv->data.property_set.params_len), recv->data.property_set.params);
 
     cJSON *json = cJSON_ParseWithLength(recv->data.property_set.params, (int)(recv->data.property_set.params_len));
-    // const cJSON *method;
-    // method = cJSON_GetObjectItem(json, "method");
-    // if (cJSON_IsString(method) && (method->valuestring != NULL))
-    // {
-    // if (strcmp("thing.service.property.set", method->valuestring) == 0)
-    // {
-    // cJSON *params = cJSON_GetObjectItem(json, "params");
-    // cJSON *result = cJSON_CreateObject();
-    // cJSON_AddItemToObject(result, "params", params);
-    // cJSON_AddItemReferenceToObject(result, "params", params);
-
-    /*
-
-     {
-        "RGBColor":{"Red":123,"Blue":123,"Green":123},
-        "Timer_Quantum":"来自云端",
-        "sleepOnOff":1,
-        "timingFunction":0,
-        "powerstate":1}
-
-    */
 
     cJSON *RGBColor = cJSON_GetObjectItem(json, "RGBColor");
     if (cJSON_IsObject(RGBColor))
@@ -626,6 +592,10 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
 
         if (cJSON_IsNumber(Red) && cJSON_IsNumber(Blue) && cJSON_IsNumber(Green))
         {
+            alMQTT_data.RGBColorFlag = 1;
+            alMQTT_data.RGBColor.red = Red->valueint;
+            alMQTT_data.RGBColor.green = Green->valueint;
+            alMQTT_data.RGBColor.blue = Blue->valueint;
             ESP_LOGI("cJSON TEST", "RGB: %d-%d-%d", Red->valueint, Blue->valueint, Green->valueint);
         }
     }
@@ -633,12 +603,15 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *powerstate = cJSON_GetObjectItem(json, "powerstate");
     if (cJSON_IsNumber(powerstate))
     {
+        alMQTT_data.powerstateFlag = 0;
         if (powerstate->valueint == 0)
         {
+            alMQTT_data.powerstate = 0;
             ESP_LOGI("cJSON TEST", "powerstate = 0");
         }
         else
         {
+            alMQTT_data.powerstate = 1;
             ESP_LOGI("cJSON TEST", "powerstate = 1");
         }
     }
@@ -646,18 +619,23 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *Timer_Quantum = cJSON_GetObjectItem(json, "Timer_Quantum");
     if (cJSON_IsString(Timer_Quantum))
     {
+        alMQTT_data.Timer_QuantumFlag = 0;
+        alMQTT_data.Timer_Quantum = Timer_Quantum->valuestring;
         ESP_LOGI("cJSON TEST", "Timer_Quantum = %s", Timer_Quantum->valuestring);
     }
 
     cJSON *sleepOnOff = cJSON_GetObjectItem(json, "sleepOnOff");
     if (cJSON_IsNumber(sleepOnOff))
     {
+        alMQTT_data.sleepOnOffFlag = 0;
         if (sleepOnOff->valueint == 0)
         {
+            alMQTT_data.sleepOnOff = 0;
             ESP_LOGI("cJSON TEST", "sleepOnOff = 0");
         }
         else
         {
+            alMQTT_data.sleepOnOff = 1;
             ESP_LOGI("cJSON TEST", "sleepOnOff = 1");
         }
     }
@@ -665,28 +643,21 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *timingFunction = cJSON_GetObjectItem(json, "timingFunction");
     if (cJSON_IsNumber(timingFunction))
     {
+        alMQTT_data.timingFunctionFlag = 0;
         if (timingFunction->valueint == 0)
         {
+            alMQTT_data.timingFunction = 0;
             ESP_LOGI("cJSON TEST", "timingFunction = 0");
         }
         else
         {
+            alMQTT_data.timingFunction = 1;
             ESP_LOGI("cJSON TEST", "timingFunction = 1");
         }
     }
-    // char *result_string = cJSON_PrintUnformatted(result);
-
-    // cJSON_Delete(result);
-    // esp_mqtt_client_publish(client, "/sys/a1gFEcNBZwC/aaaa/thing/event/property/post",
-    //                         result_string,
-    //                         strlen(result_string),
-    //                         0, 0);
-    // printf("%s\n", result_string);
-    // cJSON_free(result_string);
-    // }
-    // }
     cJSON_Delete(json);
-    // }
+
+    ReceMqttFlag = 1;
 
     /* TODO: 以下代码演示如何对来自云平台的属性设置指令进行应答, 用户可取消注释查看演示效果 */
     // /*
