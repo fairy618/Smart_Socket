@@ -39,7 +39,7 @@ void app_main(void)
 
     xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 2048 * 2, (void *)xQueueElectric, 2, NULL);
 
-    xTaskCreate(Task_Relay, "Task_Relay", 2048, (void *)xQueueRelay, 1, NULL);
+    xTaskCreate(Task_Relay, "Task_Relay", 2048, (void *)xQueueSet, 1, NULL);
 
     xTaskCreate(Task_WS2812, "Task_WS2812", 2048, (void *)xQueueSet, 3, NULL);
 

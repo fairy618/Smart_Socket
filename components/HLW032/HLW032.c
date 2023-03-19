@@ -33,7 +33,7 @@ void Task_Hlw8032(void *pvParameters)
         if (xQueueReceive(xQueue_HLW8032, (void *)&Event_uart1, (TickType_t)portMAX_DELAY) == pdPASS)
         {
             UartRecCnt++;
-            if (UartRecCnt % 20 == 0)
+            if (UartRecCnt % 200 == 0)
             {
                 switch (Event_uart1.type)
                 {
@@ -42,7 +42,7 @@ void Task_Hlw8032(void *pvParameters)
                     int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
                     hlw8032_data_processing(&hlw8032_row_data, &ElectricalParameter, hlw8032_uart_data, len);
 
-                    if (xQueueSend(xQueueElectric, (void *)&ElectricalParameter, 0) == pdPASS)
+                    if (xQueueSend(xQueueElectric, (void *)&ElectricalParameter, pdMS_TO_TICKS(200)) == pdPASS)
                     {
                         ESP_LOGI("SENSOR", " --- Send ElectricalParameter to xQueue done! --- ");
                     }

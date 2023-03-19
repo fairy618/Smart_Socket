@@ -79,7 +79,10 @@ void Task_key(void *pvParameters)
  */
 void Task_Relay(void *pvParameters)
 {
-    QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
+    QueueSetHandle_t xQueueSet = (QueueSetHandle_t)pvParameters;
+    QueueSetMemberHandle_t xActivatedMember;
+
+    // QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
     bool HighWaterMark = 1;
     bool RelayState = 0;
 
@@ -88,21 +91,42 @@ void Task_Relay(void *pvParameters)
 
     while (1)
     {
-        if (xQueueReceive(xQueueRelay, &RelayState, portMAX_DELAY) == pdPASS)
+        xActivatedMember = xQueueSelectFromSet(xQueueSet, portMAX_DELAY);
+        if (xActivatedMember == xQueueRelay)
         {
-            if (RelayState)
+            if (xQueueReceive(xQueueRelay, &RelayState, 0) == pdPASS)
             {
-                Relay_ledc_set_duty(80);
+                ESP_LOGE("RELAY", "Rec Data, RelayState is %d. ", (RelayState == 0 ? 0 : 1));
+                if (RelayState)
+                {
+                    Relay_ledc_set_duty(80);
+                }
+                else
+                {
+                    Relay_ledc_set_duty(0);
+                }
             }
             else
             {
-                Relay_ledc_set_duty(0);
+                ESP_LOGE("RELAY", "Rec Data timeout. ");
             }
         }
-        else
-        {
-            ESP_LOGE("RELAY", "Rec Data timeout. ");
-        }
+
+        // if (xQueueReceive(xQueueRelay, &RelayState, portMAX_DELAY) == pdPASS)
+        // {
+        //     if (RelayState)
+        //     {
+        //         Relay_ledc_set_duty(80);
+        //     }
+        //     else
+        //     {
+        //         Relay_ledc_set_duty(0);
+        //     }
+        // }
+        // else
+        // {
+        //     ESP_LOGE("RELAY", "Rec Data timeout. ");
+        // }
 
         if (HighWaterMark)
         {
@@ -194,33 +218,35 @@ void Task_WS2812(void *pvParameters)
 
     while (1)
     {
-        // for (int i = 0; i < 3; i++)
-        // {
-        //     for (int j = i; j < RMT_LED_NUMBERS; j += 3)
-        //     {
-        //         // Build RGB pixels
-        //         hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
-        //         led_strip_hsv2rgb(hue, 100, 100, &RgbData.red, &RgbData.green, &RgbData.blue);
-        //         led_strip_pixels[j * 3 + 0] = RgbData.green;
-        //         led_strip_pixels[j * 3 + 1] = RgbData.blue;
-        //         led_strip_pixels[j * 3 + 2] = RgbData.red;
-        //     }
-        //     // Flush RGB values to LEDs
-        //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-        //     vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
-        // }
-        // start_rgb += 1;
+        {
+            // for (int i = 0; i < 3; i++)
+            // {
+            //     for (int j = i; j < RMT_LED_NUMBERS; j += 3)
+            //     {
+            //         // Build RGB pixels
+            //         hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
+            //         led_strip_hsv2rgb(hue, 100, 100, &RgbData.red, &RgbData.green, &RgbData.blue);
+            //         led_strip_pixels[j * 3 + 0] = RgbData.green;
+            //         led_strip_pixels[j * 3 + 1] = RgbData.blue;
+            //         led_strip_pixels[j * 3 + 2] = RgbData.red;
+            //     }
+            //     // Flush RGB values to LEDs
+            //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+            //     vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
+            // }
+            // start_rgb += 1;
 
-        // if (xQueueReceive(xQueue, &RgbData, portMAX_DELAY) == pdPASS)
-        // {
-        //     led_strip_pixels[0] = RgbData.green;
-        //     led_strip_pixels[1] = RgbData.blue;
-        //     led_strip_pixels[2] = RgbData.red;
-        //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-        //     // vTaskDelay(pdMS_TO_TICKS(1000));
-        // }
+            // if (xQueueReceive(xQueue, &RgbData, portMAX_DELAY) == pdPASS)
+            // {
+            //     led_strip_pixels[0] = RgbData.green;
+            //     led_strip_pixels[1] = RgbData.blue;
+            //     led_strip_pixels[2] = RgbData.red;
+            //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+            //     // vTaskDelay(pdMS_TO_TICKS(1000));
+            // }
+        }
 
-        xActivatedMember = xQueueSelectFromSet(xQueueSet, pdMS_TO_TICKS(200));
+        xActivatedMember = xQueueSelectFromSet(xQueueSet, portMAX_DELAY);
         if (xActivatedMember == xQueueRgb)
         {
             if (xQueueReceive(xQueueRgb, &RgbData, 0) == pdPASS)
@@ -233,7 +259,6 @@ void Task_WS2812(void *pvParameters)
                 ESP_LOGI("RGB", " -- -- -- Rec Data -- -- --");
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 

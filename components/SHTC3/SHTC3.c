@@ -71,7 +71,7 @@ void Task_sensor(void *pvParameters)
             Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
             bh1750_read_data(&Sensor_data.LightIntensity);
 
-            if (xQueueSend(xQueueSensor, (void *)&Sensor_data, 0) == pdPASS)
+            if (xQueueSend(xQueueSensor, (void *)&Sensor_data, pdMS_TO_TICKS(200)) == pdPASS)
             {
                 ESP_LOGI("SENSORe", " --- Send Sensor_data to xQueue done! --- ");
             }

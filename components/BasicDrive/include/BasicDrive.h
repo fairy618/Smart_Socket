@@ -42,7 +42,9 @@ typedef struct
     uint32_t green;
     uint32_t blue;
 } rgb_data_t;
+
 extern QueueHandle_t xQueueRgb;
+extern QueueHandle_t xQueueRelay;
 
 void Task_key(void *pvParameters);
 void Task_LED(void *pvParameters);

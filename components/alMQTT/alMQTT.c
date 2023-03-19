@@ -39,6 +39,8 @@ bool ReceMqttFlag = 0;
 alMQTT_data_t alMQTT_data;
 bool RgbRecFlag = 0;
 rgb_data_t RgbRecData;
+bool RelayRecFlag = 0;
+bool RelayRecData;
 
 /*
  * @description: static function
@@ -271,7 +273,7 @@ void Task_ali_mqqt(void *pvParameters)
     /* 主循环进入休眠 */
     while (1)
     {
-        xActivatedMember = xQueueSelectFromSet(xQueueSet, pdMS_TO_TICKS(200));
+        xActivatedMember = xQueueSelectFromSet(xQueueSet, pdMS_TO_TICKS(100));
 
         if (xActivatedMember == xQueueSensor)
         {
@@ -313,13 +315,27 @@ void Task_ali_mqqt(void *pvParameters)
         {
             RgbRecFlag = 0;
 
-            if (xQueueSend(xQueueRgb, (void *)&RgbRecData, 0) == pdPASS)
+            if (xQueueSend(xQueueRgb, (void *)&RgbRecData, pdMS_TO_TICKS(200)) == pdPASS)
             {
                 ESP_LOGI("ALMQTT", " --- Send RgbRecData to xQueue done! --- ");
             }
             else
             {
                 ESP_LOGE("ALMQTT", " --- Send RgbRecData to xQueue failed! --- ");
+            }
+        }
+
+        if (RelayRecFlag)
+        {
+            RelayRecFlag = 0;
+
+            if (xQueueSend(xQueueRgb, (void *)&RelayRecData, pdMS_TO_TICKS(200)) == pdPASS)
+            {
+                ESP_LOGI("ALMQTT", " --- Send RelayRecData to xQueue done! --- ");
+            }
+            else
+            {
+                ESP_LOGE("ALMQTT", " --- Send RelayRecData to xQueue failed! --- ");
             }
         }
 
@@ -335,7 +351,7 @@ void Task_ali_mqqt(void *pvParameters)
 
         // pal_post_property_EnvTemperature(dm_handle, 12.34);
 
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        // vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     /* 断开MQTT连接, 一般不会运行到这里 */
@@ -375,7 +391,7 @@ void Task_ali_mqqt(void *pvParameters)
 int32_t demo_state_logcb(int32_t code, char *message)
 {
     // ESP_LOGD("LINK SDK", "%s", message);
-    printf("%s", message);
+    // printf("%s", message);
     return 0;
 }
 
@@ -679,15 +695,15 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
     cJSON *powerstate = cJSON_GetObjectItem(json, "powerstate");
     if (cJSON_IsNumber(powerstate))
     {
-        alMQTT_data.powerstateFlag = 0;
+        RelayRecFlag = 1;
         if (powerstate->valueint == 0)
         {
-            alMQTT_data.powerstate = 0;
+            RelayRecData = 0;
             ESP_LOGI("cJSON TEST", "powerstate = 0");
         }
         else
         {
-            alMQTT_data.powerstate = 1;
+            RelayRecData = 1;
             ESP_LOGI("cJSON TEST", "powerstate = 1");
         }
     }
