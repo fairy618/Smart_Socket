@@ -36,6 +36,13 @@
 #define RMT_LED_NUMBERS 1
 #define RMT_LED_CHASE_SPEED_MS 50
 
+typedef struct
+{
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+} rgb_data_t;
+
 void Task_key(void *pvParameters);
 void Task_LED(void *pvParameters);
 void Task_Relay(void *pvParameters);

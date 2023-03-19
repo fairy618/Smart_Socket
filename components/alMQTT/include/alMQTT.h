@@ -30,12 +30,14 @@
 
 #include "cJSON.h"
 
-#include "pal_prop_post_api.h"
-
 #include "aiot_state_api.h"
 #include "aiot_sysdep_api.h"
 #include "aiot_mqtt_api.h"
 #include "aiot_dm_api.h"
+
+#include "BasicDrive.h"
+#include "SHTC3.h"
+#include "HLW032.h"
 
 // #define WIFI_SSID_ "ChinaNet-xcYb"
 // #define WIFI_PASSWORD_ "pvg249cs"
@@ -48,13 +50,6 @@
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
-
-typedef struct
-{
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} rgb_data_t;
 
 typedef struct
 {
