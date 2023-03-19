@@ -10,7 +10,10 @@ static uint8_t led_strip_pixels[RMT_LED_NUMBERS * 3];
  */
 void Task_key(void *pvParameters)
 {
+    QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
     static uint8_t LongPressCnt = 0;
+    uint8_t KeyValue = 0;
+    bool RelayState = 0;
 
     gpio_reset_pin(GPIO_NUM_KEY);
     gpio_set_direction(GPIO_NUM_KEY, GPIO_MODE_INPUT);
@@ -24,7 +27,7 @@ void Task_key(void *pvParameters)
             if (gpio_get_level(GPIO_NUM_KEY) == 0)
             {
                 ESP_LOGI("TASK KEY", "Key is press. ");
-
+                KeyValue = 1;
                 while (gpio_get_level(GPIO_NUM_KEY) == 0)
                 {
                     vTaskDelay(20 / portTICK_PERIOD_MS);
@@ -34,6 +37,7 @@ void Task_key(void *pvParameters)
                     }
                     if (LongPressCnt == 100)
                     {
+                        KeyValue = 2;
                         ESP_LOGI("TASK KEY", "Key is long press. ");
                     }
                 }
@@ -45,6 +49,24 @@ void Task_key(void *pvParameters)
                 {
                     ESP_LOGI("TASK KEY", "Key is free after long press. ");
                 }
+
+                if (KeyValue == 1)
+                {
+                    RelayState = !RelayState;
+                    if (xQueueSend(xQueueRelay, (void *)&RelayState, 0) == pdPASS)
+                    {
+                        ESP_LOGI("KEY", " --- Send RelayState to xQueue done! --- ");
+                    }
+                    else
+                    {
+                        ESP_LOGE("KEY", " --- Send RelayState to xQueue fail! --- ");
+                    }
+                }
+                else if (KeyValue == 2)
+                {
+                    // wifi config
+                }
+                KeyValue = 0;
             }
         }
         vTaskDelay(20 / portTICK_PERIOD_MS);
@@ -57,18 +79,31 @@ void Task_key(void *pvParameters)
  */
 void Task_Relay(void *pvParameters)
 {
+    QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
     bool HighWaterMark = 1;
+    bool RelayState = 0;
 
     Relay_ledc_init();
     Relay_ledc_set_duty(0);
 
     while (1)
     {
-        Relay_ledc_set_duty(0);
-        vTaskDelay(20000 / portTICK_PERIOD_MS);
+        if (xQueueReceive(xQueueRelay, &RelayState, portMAX_DELAY) == pdPASS)
+        {
+            if (RelayState)
+            {
+                Relay_ledc_set_duty(80);
+            }
+            else
+            {
+                Relay_ledc_set_duty(0);
+            }
+        }
+        else
+        {
+            ESP_LOGE("RELAY", "Rec Data timeout. ");
+        }
 
-        Relay_ledc_set_duty(80);
-        vTaskDelay(20000 / portTICK_PERIOD_MS);
         if (HighWaterMark)
         {
             HighWaterMark = 0;
@@ -115,9 +150,11 @@ void Task_LED(void *pvParameters)
  */
 void Task_WS2812(void *pvParameters)
 {
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
+    QueueHandle_t xQueueRgb = (QueueHandle_t)pvParameters;
+    rgb_data_t RgbData = {0, 0, 0};
+    // uint32_t red = 0;
+    // uint32_t green = 0;
+    // uint32_t blue = 0;
     uint16_t hue = 0;
     uint16_t start_rgb = 0;
 
@@ -149,25 +186,30 @@ void Task_WS2812(void *pvParameters)
 
     while (1)
     {
-        for (int i = 0; i < 3; i++)
+        // for (int i = 0; i < 3; i++)
+        // {
+        //     for (int j = i; j < RMT_LED_NUMBERS; j += 3)
+        //     {
+        //         // Build RGB pixels
+        //         hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
+        //         led_strip_hsv2rgb(hue, 100, 100, &RgbData.red, &RgbData.green, &RgbData.blue);
+        //         led_strip_pixels[j * 3 + 0] = RgbData.green;
+        //         led_strip_pixels[j * 3 + 1] = RgbData.blue;
+        //         led_strip_pixels[j * 3 + 2] = RgbData.red;
+        //     }
+        //     // Flush RGB values to LEDs
+        //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+        //     vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
+        // }
+        // start_rgb += 1;
+        if (xQueueReceive(xQueueRgb, &RgbData, portMAX_DELAY) == pdPASS)
         {
-            for (int j = i; j < RMT_LED_NUMBERS; j += 3)
-            {
-                // Build RGB pixels
-                hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
-                led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-                led_strip_pixels[j * 3 + 0] = green;
-                led_strip_pixels[j * 3 + 1] = blue;
-                led_strip_pixels[j * 3 + 2] = red;
-            }
-            // Flush RGB values to LEDs
+            led_strip_pixels[0] = RgbData.green;
+            led_strip_pixels[1] = RgbData.blue;
+            led_strip_pixels[2] = RgbData.red;
             ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
-            // memset(led_strip_pixels, 0, sizeof(led_strip_pixels));
-            // ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            // vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
+            // vTaskDelay(pdMS_TO_TICKS(1000));
         }
-        start_rgb += 1;
     }
 }
 

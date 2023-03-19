@@ -37,6 +37,8 @@ static uint8_t g_mqtt_recv_thread_running = 0;
  */
 bool ReceMqttFlag = 0;
 alMQTT_data_t alMQTT_data;
+bool RgbRecFlag = 0;
+rgb_data_t RgbRecData;
 
 /*
  * @description: static function
@@ -150,6 +152,9 @@ void wifi_init_sta(void)
 
 void Task_ali_mqqt(void *pvParameters)
 {
+    QueueSetHandle_t xQueueSet = *((QueueSetHandle_t *)pvParameters);
+    QueueSetMemberHandle_t xActivatedMember;
+
     int32_t res = STATE_SUCCESS;
     void *mqtt_handle = NULL;
     char *url = "iot-as-mqtt.cn-shanghai.aliyuncs.com"; /* 阿里云平台上海站点的域名后缀 */
@@ -157,8 +162,9 @@ void Task_ali_mqqt(void *pvParameters)
     uint16_t port = 443;                                /* 无论设备是否使用TLS连接阿里云平台, 目的端口都是443 */
     uint8_t post_reply = 1;
     aiot_sysdep_network_cred_t cred; /* 安全凭据结构体, 如果要用TLS, 这个结构体中配置CA证书等参数 */
+
+    ElectricalParameter_t ElectricalParameter;
     Sensor_data_t SensorData;
-    QueueHandle_t xQueueSensor = (QueueHandle_t)pvParameters;
 
     /* 配置SDK的底层依赖 */
     aiot_sysdep_set_portfile(&g_aiot_sysdep_portfile);
@@ -265,6 +271,49 @@ void Task_ali_mqqt(void *pvParameters)
     /* 主循环进入休眠 */
     while (1)
     {
+        xActivatedMember = xQueueSelectFromSet(xQueueSet, pdMS_TO_TICKS(200));
+
+        if (xActivatedMember == xQueueSensor)
+        {
+            if (xQueueReceive(xActivatedMember, &SensorData, 0) == pdPASS)
+            {
+                ESP_LOGI("TASK AL MQTT", "Rec Data: EnvTemperature: %.2f(℃), EnvHumidity: %.2f(%%), ChipTemperature: %.2f(℃), LightIntensity: %d(lm). ", SensorData.EnvironmentTemperature, SensorData.EnvHumidity, SensorData.ChipTemperature, SensorData.LightIntensity);
+                pal_post_property_EnvTemperature(dm_handle, SensorData.EnvironmentTemperature);
+                pal_post_property_EnvHumidity(dm_handle, SensorData.EnvHumidity);
+                pal_post_property_ChipTemperture(dm_handle, SensorData.ChipTemperature);
+                pal_post_property_LightIntensity(dm_handle, SensorData.LightIntensity);
+            }
+            else
+            {
+                ESP_LOGE("TASK AL MQTT", "Send SensorData failed. ");
+            }
+        }
+        else if (xActivatedMember == xQueueElectric)
+        {
+            if (xQueueReceive(xActivatedMember, &ElectricalParameter, 0) == pdPASS)
+            {
+                ESP_LOGI("TASK AL MQTT", "Rec Data: VoltageRMS: %.2f (V). ", ElectricalParameter.VoltageRMS);
+                ESP_LOGI("TASK AL MQTT", "Rec Data: CurrentRMS: %.2f (A). ", ElectricalParameter.CurrentRMS);
+                ESP_LOGI("TASK AL MQTT", "Rec Data: ActivePower: %.2f (W). ", ElectricalParameter.ActivePower);
+                ESP_LOGI("TASK AL MQTT", "Rec Data: ApparentPower: %.2f (W). ", ElectricalParameter.ApparentPower);
+                ESP_LOGI("TASK AL MQTT", "Rec Data: PowerFactor: %.2f. ", ElectricalParameter.PowerFactor);
+                ESP_LOGI("TASK AL MQTT", "Rec Data: PF_value: %lld. ", ElectricalParameter.PF_value);
+                ESP_LOGI("TASK AL MQTT", "Rec Data: ElectricityConsumption: %.2f (kWh). ", ElectricalParameter.ElectricityConsumption);
+
+                pal_post_property_RMSCurrent(dm_handle, ElectricalParameter.CurrentRMS);
+                pal_post_property_RMSVoltage(dm_handle, ElectricalParameter.VoltageRMS);
+            }
+            else
+            {
+                ESP_LOGE("TASK AL MQTT", "Send ElectricalParameter failed. ");
+            }
+        }
+
+        if (RgbRecFlag)
+        {
+            RgbRecFlag = 0;
+        }
+
         // if (ReceMqttFlag == 1)
         // {
         //     ReceMqttFlag = 0;
@@ -272,18 +321,7 @@ void Task_ali_mqqt(void *pvParameters)
 
         // if (uxQueueMessagesWaiting(xQueueSensor) != 0) // Returns the number of items that are currently held in a queue
         // {
-        if (xQueueReceive(xQueueSensor, &SensorData, portMAX_DELAY) == pdPASS)
-        {
-            ESP_LOGI("TASK AL MQTT", "Rec Data: EnvTemperature: %.2f(℃), EnvHumidity: %.2f(%%), ChipTemperature: %.2f(℃), LightIntensity: %d(lm). ", SensorData.EnvironmentTemperature, SensorData.EnvHumidity, SensorData.ChipTemperature, SensorData.LightIntensity);
-            pal_post_property_EnvTemperature(dm_handle, SensorData.EnvironmentTemperature);
-            pal_post_property_EnvHumidity(dm_handle, SensorData.EnvHumidity);
-            pal_post_property_ChipTemperture(dm_handle, SensorData.ChipTemperature);
-            pal_post_property_LightIntensity(dm_handle, SensorData.LightIntensity);
-        }
-        else
-        {
-            ESP_LOGE("TASK AL MQTT", "Rec data failed. ");
-        }
+
         // }
 
         // pal_post_property_EnvTemperature(dm_handle, 12.34);
@@ -620,11 +658,12 @@ static void al_dm_recv_property_set(void *dm_handle, const aiot_dm_recv_t *recv,
 
         if (cJSON_IsNumber(Red) && cJSON_IsNumber(Blue) && cJSON_IsNumber(Green))
         {
-            alMQTT_data.RGBColorFlag = 1;
-            alMQTT_data.RGBColor.red = Red->valueint;
-            alMQTT_data.RGBColor.green = Green->valueint;
-            alMQTT_data.RGBColor.blue = Blue->valueint;
-            ESP_LOGI("cJSON TEST", "RGB: %d-%d-%d", Red->valueint, Blue->valueint, Green->valueint);
+            RgbRecFlag = 1;
+            RgbRecData.red = Red->valueint;
+            RgbRecData.green = Green->valueint;
+            RgbRecData.blue = Blue->valueint;
+
+            ESP_LOGI("cJSON TEST", "RGB: %d-%d-%d", (uint8_t)RgbRecData.red, (uint8_t)RgbRecData.green, (uint8_t)RgbRecData.blue);
         }
     }
 

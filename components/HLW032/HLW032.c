@@ -14,6 +14,8 @@ static void hlw8032_init(void);
  */
 void Task_Hlw8032(void *pvParameters)
 {
+    QueueHandle_t xQueueElectric = (QueueHandle_t)pvParameters;
+
     HLW8032_data_t hlw8032_row_data;
     ElectricalParameter_t ElectricalParameter;
     uart_event_t Event_uart1;
@@ -39,6 +41,16 @@ void Task_Hlw8032(void *pvParameters)
                     ESP_LOGI("UART1 EVENT", "uart data: %d. ", Event_uart1.size);
                     int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
                     hlw8032_data_processing(&hlw8032_row_data, &ElectricalParameter, hlw8032_uart_data, len);
+
+                    if (xQueueSend(xQueueElectric, (void *)&ElectricalParameter, 0) == pdPASS)
+                    {
+                        ESP_LOGI("SENSOR", " --- Send ElectricalParameter to xQueue done! --- ");
+                    }
+                    else
+                    {
+                        ESP_LOGE("SENSOR", " --- Send ElectricalParameter to xQueue failed! --- ");
+                    }
+
                     ESP_LOGI("UART_DATA", "len = %d. ", len);
                     break;
                 case UART_BREAK:

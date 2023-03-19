@@ -8,7 +8,7 @@
  */
 void Task_sensor(void *pvParameters)
 {
-    QueueHandle_t xQueue = (QueueHandle_t)pvParameters;
+    QueueHandle_t xQueueSensor = (QueueHandle_t)pvParameters;
 
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;
@@ -58,7 +58,7 @@ void Task_sensor(void *pvParameters)
             ESP_LOGE("SHTC3 CRC CHECK", "There are somgthing wrong whit shtc3");
             continue;
         }
-        else
+        else // Valid crc check
         {
             struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
             struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
@@ -71,7 +71,7 @@ void Task_sensor(void *pvParameters)
             Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
             bh1750_read_data(&Sensor_data.LightIntensity);
 
-            if (xQueueSend(xQueue, (void *)&Sensor_data, 0) == pdPASS)
+            if (xQueueSend(xQueueSensor, (void *)&Sensor_data, 0) == pdPASS)
             {
                 ESP_LOGI("SENSORe", " --- Send Sensor_data to xQueue done! --- ");
             }

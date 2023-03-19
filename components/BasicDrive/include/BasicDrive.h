@@ -38,9 +38,9 @@
 
 typedef struct
 {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
+    uint32_t red;
+    uint32_t green;
+    uint32_t blue;
 } rgb_data_t;
 
 void Task_key(void *pvParameters);
