@@ -33,7 +33,7 @@ void Task_Hlw8032(void *pvParameters)
         if (xQueueReceive(xQueue_HLW8032, (void *)&Event_uart1, (TickType_t)portMAX_DELAY) == pdPASS)
         {
             UartRecCnt++;
-            if (UartRecCnt % 10 == 0)
+            if (UartRecCnt % 20 == 0)
             {
                 switch (Event_uart1.type)
                 {

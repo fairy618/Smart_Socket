@@ -152,7 +152,7 @@ void wifi_init_sta(void)
 
 void Task_ali_mqqt(void *pvParameters)
 {
-    QueueSetHandle_t xQueueSet = *((QueueSetHandle_t *)pvParameters);
+    QueueSetHandle_t xQueueSet = ((QueueSetHandle_t)pvParameters);
     QueueSetMemberHandle_t xActivatedMember;
 
     int32_t res = STATE_SUCCESS;
@@ -312,6 +312,15 @@ void Task_ali_mqqt(void *pvParameters)
         if (RgbRecFlag)
         {
             RgbRecFlag = 0;
+
+            if (xQueueSend(xQueueRgb, (void *)&RgbRecData, 0) == pdPASS)
+            {
+                ESP_LOGI("ALMQTT", " --- Send RgbRecData to xQueue done! --- ");
+            }
+            else
+            {
+                ESP_LOGE("ALMQTT", " --- Send RgbRecData to xQueue failed! --- ");
+            }
         }
 
         // if (ReceMqttFlag == 1)

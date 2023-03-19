@@ -150,7 +150,10 @@ void Task_LED(void *pvParameters)
  */
 void Task_WS2812(void *pvParameters)
 {
-    QueueHandle_t xQueueRgb = (QueueHandle_t)pvParameters;
+    QueueSetHandle_t xQueueSet = ((QueueSetHandle_t)pvParameters);
+    QueueSetMemberHandle_t xActivatedMember;
+
+    // QueueHandle_t xQueue = (QueueHandle_t)pvParameters;
     rgb_data_t RgbData = {0, 0, 0};
     // uint32_t red = 0;
     // uint32_t green = 0;
@@ -184,6 +187,11 @@ void Task_WS2812(void *pvParameters)
         .loop_count = 0, // no transfer loop
     };
 
+    led_strip_pixels[0] = 0;
+    led_strip_pixels[1] = 100;
+    led_strip_pixels[2] = 100;
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+
     while (1)
     {
         // for (int i = 0; i < 3; i++)
@@ -202,14 +210,30 @@ void Task_WS2812(void *pvParameters)
         //     vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
         // }
         // start_rgb += 1;
-        if (xQueueReceive(xQueueRgb, &RgbData, portMAX_DELAY) == pdPASS)
+
+        // if (xQueueReceive(xQueue, &RgbData, portMAX_DELAY) == pdPASS)
+        // {
+        //     led_strip_pixels[0] = RgbData.green;
+        //     led_strip_pixels[1] = RgbData.blue;
+        //     led_strip_pixels[2] = RgbData.red;
+        //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+        //     // vTaskDelay(pdMS_TO_TICKS(1000));
+        // }
+
+        xActivatedMember = xQueueSelectFromSet(xQueueSet, pdMS_TO_TICKS(200));
+        if (xActivatedMember == xQueueRgb)
         {
-            led_strip_pixels[0] = RgbData.green;
-            led_strip_pixels[1] = RgbData.blue;
-            led_strip_pixels[2] = RgbData.red;
-            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            // vTaskDelay(pdMS_TO_TICKS(1000));
+            if (xQueueReceive(xQueueRgb, &RgbData, 0) == pdPASS)
+            {
+                led_strip_pixels[0] = RgbData.green;
+                led_strip_pixels[1] = RgbData.red;
+                led_strip_pixels[2] = RgbData.blue;
+                ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+                // vTaskDelay(pdMS_TO_TICKS(1000));
+                ESP_LOGI("RGB", " -- -- -- Rec Data -- -- --");
+            }
         }
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 

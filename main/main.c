@@ -41,13 +41,13 @@ void app_main(void)
 
     xTaskCreate(Task_Relay, "Task_Relay", 2048, (void *)xQueueRelay, 1, NULL);
 
-    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, (void *)xQueueRgb, 2, NULL);
+    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, (void *)xQueueSet, 3, NULL);
 
     xTaskCreate(Task_key, "Task_key", 2048, (void *)xQueueRelay, 1, NULL);
 
     WifiConnect();
 
-    xTaskCreate(Task_ali_mqqt, "Task_ali_mqqt", 2048 * 2, (void *)&xQueueSet, 5, NULL);
+    xTaskCreate(Task_ali_mqqt, "Task_ali_mqqt", 2048 * 2, (void *)xQueueSet, 5, NULL);
 
     while (1)
     {
