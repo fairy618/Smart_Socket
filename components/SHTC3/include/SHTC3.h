@@ -57,6 +57,8 @@ typedef struct
     int LightIntensity;
 } Sensor_data_t;
 
+extern QueueHandle_t xQueueSensor_g;
+
 void Task_sensor(void *pvParameters);
 esp_err_t i2c_master_init(void);
 esp_err_t shtc3_read_out_id(uint8_t *data);

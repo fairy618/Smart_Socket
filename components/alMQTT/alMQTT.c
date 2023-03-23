@@ -154,9 +154,6 @@ void wifi_init_sta(void)
 
 void Task_ali_mqqt(void *pvParameters)
 {
-    QueueSetHandle_t xQueueSet = ((QueueSetHandle_t)pvParameters);
-    QueueSetMemberHandle_t xActivatedMember;
-
     int32_t res = STATE_SUCCESS;
     void *mqtt_handle = NULL;
     char *url = "iot-as-mqtt.cn-shanghai.aliyuncs.com"; /* 阿里云平台上海站点的域名后缀 */
@@ -273,49 +270,56 @@ void Task_ali_mqqt(void *pvParameters)
     /* 主循环进入休眠 */
     while (1)
     {
-        xActivatedMember = xQueueSelectFromSet(xQueueSet, pdMS_TO_TICKS(100));
-
-        if (xActivatedMember == xQueueSensor)
+        if (xQueueReceive(xQueueSensor_g, &SensorData, 0) == pdPASS)
         {
-            if (xQueueReceive(xActivatedMember, &SensorData, 0) == pdPASS)
-            {
-                ESP_LOGI("TASK AL MQTT", "Rec Data: EnvTemperature: %.2f(℃), EnvHumidity: %.2f(%%), ChipTemperature: %.2f(℃), LightIntensity: %d(lm). ", SensorData.EnvironmentTemperature, SensorData.EnvHumidity, SensorData.ChipTemperature, SensorData.LightIntensity);
-                pal_post_property_EnvTemperature(dm_handle, SensorData.EnvironmentTemperature);
-                pal_post_property_EnvHumidity(dm_handle, SensorData.EnvHumidity);
-                pal_post_property_ChipTemperture(dm_handle, SensorData.ChipTemperature);
-                pal_post_property_LightIntensity(dm_handle, SensorData.LightIntensity);
-            }
-            else
-            {
-                ESP_LOGE("TASK AL MQTT", "Send SensorData failed. ");
-            }
+            pal_post_property_EnvTemperature(dm_handle, SensorData.EnvironmentTemperature);
+            pal_post_property_EnvHumidity(dm_handle, SensorData.EnvHumidity);
+            pal_post_property_ChipTemperture(dm_handle, SensorData.ChipTemperature);
+            pal_post_property_LightIntensity(dm_handle, SensorData.LightIntensity);
+            ESP_LOGI("TASK AL MQTT", "Rec Data: EnvTemperature: %.2f(℃), EnvHumidity: %.2f(%%), ChipTemperature: %.2f(℃), LightIntensity: %d(lm). ", SensorData.EnvironmentTemperature, SensorData.EnvHumidity, SensorData.ChipTemperature, SensorData.LightIntensity);
         }
-        else if (xActivatedMember == xQueueElectric)
-        {
-            if (xQueueReceive(xActivatedMember, &ElectricalParameter, 0) == pdPASS)
-            {
-                ESP_LOGI("TASK AL MQTT", "Rec Data: VoltageRMS: %.2f (V). ", ElectricalParameter.VoltageRMS);
-                ESP_LOGI("TASK AL MQTT", "Rec Data: CurrentRMS: %.2f (A). ", ElectricalParameter.CurrentRMS);
-                ESP_LOGI("TASK AL MQTT", "Rec Data: ActivePower: %.2f (W). ", ElectricalParameter.ActivePower);
-                ESP_LOGI("TASK AL MQTT", "Rec Data: ApparentPower: %.2f (W). ", ElectricalParameter.ApparentPower);
-                ESP_LOGI("TASK AL MQTT", "Rec Data: PowerFactor: %.2f. ", ElectricalParameter.PowerFactor);
-                ESP_LOGI("TASK AL MQTT", "Rec Data: PF_value: %lld. ", ElectricalParameter.PF_value);
-                ESP_LOGI("TASK AL MQTT", "Rec Data: ElectricityConsumption: %.2f (kWh). ", ElectricalParameter.ElectricityConsumption);
 
-                pal_post_property_RMSCurrent(dm_handle, ElectricalParameter.CurrentRMS);
-                pal_post_property_RMSVoltage(dm_handle, ElectricalParameter.VoltageRMS);
-            }
-            else
-            {
-                ESP_LOGE("TASK AL MQTT", "Send ElectricalParameter failed. ");
-            }
-        }
+        // if (xActivatedMember == xQueueSensor)
+        // {
+        //     if (xQueueReceive(xActivatedMember, &SensorData, 0) == pdPASS)
+        //     {
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: EnvTemperature: %.2f(℃), EnvHumidity: %.2f(%%), ChipTemperature: %.2f(℃), LightIntensity: %d(lm). ", SensorData.EnvironmentTemperature, SensorData.EnvHumidity, SensorData.ChipTemperature, SensorData.LightIntensity);
+        //         pal_post_property_EnvTemperature(dm_handle, SensorData.EnvironmentTemperature);
+        //         pal_post_property_EnvHumidity(dm_handle, SensorData.EnvHumidity);
+        //         pal_post_property_ChipTemperture(dm_handle, SensorData.ChipTemperature);
+        //         pal_post_property_LightIntensity(dm_handle, SensorData.LightIntensity);
+        //     }
+        //     else
+        //     {
+        //         ESP_LOGE("TASK AL MQTT", "Send SensorData failed. ");
+        //     }
+        // }
+        // else if (xActivatedMember == xQueueElectric)
+        // {
+        //     if (xQueueReceive(xActivatedMember, &ElectricalParameter, 0) == pdPASS)
+        //     {
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: VoltageRMS: %.2f (V). ", ElectricalParameter.VoltageRMS);
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: CurrentRMS: %.2f (A). ", ElectricalParameter.CurrentRMS);
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: ActivePower: %.2f (W). ", ElectricalParameter.ActivePower);
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: ApparentPower: %.2f (W). ", ElectricalParameter.ApparentPower);
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: PowerFactor: %.2f. ", ElectricalParameter.PowerFactor);
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: PF_value: %lld. ", ElectricalParameter.PF_value);
+        //         ESP_LOGI("TASK AL MQTT", "Rec Data: ElectricityConsumption: %.2f (kWh). ", ElectricalParameter.ElectricityConsumption);
+
+        //         pal_post_property_RMSCurrent(dm_handle, ElectricalParameter.CurrentRMS);
+        //         pal_post_property_RMSVoltage(dm_handle, ElectricalParameter.VoltageRMS);
+        //     }
+        //     else
+        //     {
+        //         ESP_LOGE("TASK AL MQTT", "Send ElectricalParameter failed. ");
+        //     }
+        // }
 
         if (RgbRecFlag)
         {
             RgbRecFlag = 0;
 
-            if (xQueueSend(xQueueRgb, (void *)&RgbRecData, pdMS_TO_TICKS(200)) == pdPASS)
+            if (xQueueSend(xQueuerRgb_g, (void *)&RgbRecData, pdMS_TO_TICKS(100)) == pdPASS)
             {
                 ESP_LOGI("ALMQTT", " --- Send RgbRecData to xQueue done! --- ");
             }
@@ -329,7 +333,7 @@ void Task_ali_mqqt(void *pvParameters)
         {
             RelayRecFlag = 0;
 
-            if (xQueueSend(xQueueRgb, (void *)&RelayRecData, pdMS_TO_TICKS(200)) == pdPASS)
+            if (xQueueSend(xQueueRelay_g, (void *)&RelayRecData, pdMS_TO_TICKS(100)) == pdPASS)
             {
                 ESP_LOGI("ALMQTT", " --- Send RelayRecData to xQueue done! --- ");
             }
@@ -339,19 +343,7 @@ void Task_ali_mqqt(void *pvParameters)
             }
         }
 
-        // if (ReceMqttFlag == 1)
-        // {
-        //     ReceMqttFlag = 0;
-        // }
-
-        // if (uxQueueMessagesWaiting(xQueueSensor) != 0) // Returns the number of items that are currently held in a queue
-        // {
-
-        // }
-
-        // pal_post_property_EnvTemperature(dm_handle, 12.34);
-
-        // vTaskDelay(10 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
     /* 断开MQTT连接, 一般不会运行到这里 */

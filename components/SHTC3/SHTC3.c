@@ -8,8 +8,6 @@
  */
 void Task_sensor(void *pvParameters)
 {
-    QueueHandle_t xQueueSensor = (QueueHandle_t)pvParameters;
-
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;
     Sensor_data_t Sensor_data;
@@ -71,13 +69,13 @@ void Task_sensor(void *pvParameters)
             Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
             bh1750_read_data(&Sensor_data.LightIntensity);
 
-            if (xQueueSend(xQueueSensor, (void *)&Sensor_data, pdMS_TO_TICKS(200)) == pdPASS)
+            if (xQueueSend(xQueueSensor_g, (void *)&Sensor_data, 0) == pdPASS)
             {
-                ESP_LOGI("SENSORe", " --- Send Sensor_data to xQueue done! --- ");
+                ESP_LOGI("SENSOR", " --- Send Sensor_data to xQueue done! --- ");
             }
             else
             {
-                ESP_LOGE("SENSORe", " --- Send Sensor_data to xQueue failed! --- ");
+                ESP_LOGE("SENSOR", " --- Send Sensor_data to xQueue fail! --- ");
             }
 
             ESP_LOGI("SENSOR", "EnvironmentTemperature is %.2f℃, ChipTemperature is %.2f℃, EnvHumidity is %.2f%%, LightIntensity is %d. ", Sensor_data.EnvironmentTemperature, Sensor_data.ChipTemperature, Sensor_data.EnvHumidity, Sensor_data.LightIntensity);

@@ -10,7 +10,7 @@ static uint8_t led_strip_pixels[RMT_LED_NUMBERS * 3];
  */
 void Task_key(void *pvParameters)
 {
-    QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
+    // QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
     static uint8_t LongPressCnt = 0;
     uint8_t KeyValue = 0;
     bool RelayState = 0;
@@ -41,6 +41,7 @@ void Task_key(void *pvParameters)
                         ESP_LOGI("TASK KEY", "Key is long press. ");
                     }
                 }
+
                 if (LongPressCnt < 100)
                 {
                     ESP_LOGI("TASK KEY", "Key is free. ");
@@ -53,7 +54,7 @@ void Task_key(void *pvParameters)
                 if (KeyValue == 1)
                 {
                     RelayState = !RelayState;
-                    if (xQueueSend(xQueueRelay, (void *)&RelayState, 0) == pdPASS)
+                    if (xQueueSend(xQueueRelay_g, (void *)&RelayState, 0) == pdPASS)
                     {
                         ESP_LOGI("KEY", " --- Send RelayState to xQueue done! --- ");
                     }
@@ -79,10 +80,6 @@ void Task_key(void *pvParameters)
  */
 void Task_Relay(void *pvParameters)
 {
-    QueueSetHandle_t xQueueSet = (QueueSetHandle_t)pvParameters;
-    QueueSetMemberHandle_t xActivatedMember;
-
-    // QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
     bool HighWaterMark = 1;
     bool RelayState = 0;
 
@@ -91,42 +88,22 @@ void Task_Relay(void *pvParameters)
 
     while (1)
     {
-        xActivatedMember = xQueueSelectFromSet(xQueueSet, portMAX_DELAY);
-        if (xActivatedMember == xQueueRelay)
+        if (xQueueReceive(xQueueRelay_g, &RelayState, portMAX_DELAY) == pdPASS)
         {
-            if (xQueueReceive(xQueueRelay, &RelayState, 0) == pdPASS)
+            ESP_LOGI("RELAY", "Rec Data, RelayState is %d. ", (RelayState == 0 ? 0 : 1));
+            if (RelayState)
             {
-                ESP_LOGE("RELAY", "Rec Data, RelayState is %d. ", (RelayState == 0 ? 0 : 1));
-                if (RelayState)
-                {
-                    Relay_ledc_set_duty(80);
-                }
-                else
-                {
-                    Relay_ledc_set_duty(0);
-                }
+                Relay_ledc_set_duty(80);
             }
             else
             {
-                ESP_LOGE("RELAY", "Rec Data timeout. ");
+                Relay_ledc_set_duty(0);
             }
         }
-
-        // if (xQueueReceive(xQueueRelay, &RelayState, portMAX_DELAY) == pdPASS)
-        // {
-        //     if (RelayState)
-        //     {
-        //         Relay_ledc_set_duty(80);
-        //     }
-        //     else
-        //     {
-        //         Relay_ledc_set_duty(0);
-        //     }
-        // }
-        // else
-        // {
-        //     ESP_LOGE("RELAY", "Rec Data timeout. ");
-        // }
+        else
+        {
+            ESP_LOGE("RELAY", "Rec Data timeout. ");
+        }
 
         if (HighWaterMark)
         {
@@ -174,14 +151,8 @@ void Task_LED(void *pvParameters)
  */
 void Task_WS2812(void *pvParameters)
 {
-    QueueSetHandle_t xQueueSet = ((QueueSetHandle_t)pvParameters);
-    QueueSetMemberHandle_t xActivatedMember;
-
-    // QueueHandle_t xQueue = (QueueHandle_t)pvParameters;
     rgb_data_t RgbData = {0, 0, 0};
-    // uint32_t red = 0;
-    // uint32_t green = 0;
-    // uint32_t blue = 0;
+
     uint16_t hue = 0;
     uint16_t start_rgb = 0;
 
@@ -218,46 +189,17 @@ void Task_WS2812(void *pvParameters)
 
     while (1)
     {
+        if (xQueueReceive(xQueuerRgb_g, &RgbData, portMAX_DELAY) == pdPASS)
         {
-            // for (int i = 0; i < 3; i++)
-            // {
-            //     for (int j = i; j < RMT_LED_NUMBERS; j += 3)
-            //     {
-            //         // Build RGB pixels
-            //         hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
-            //         led_strip_hsv2rgb(hue, 100, 100, &RgbData.red, &RgbData.green, &RgbData.blue);
-            //         led_strip_pixels[j * 3 + 0] = RgbData.green;
-            //         led_strip_pixels[j * 3 + 1] = RgbData.blue;
-            //         led_strip_pixels[j * 3 + 2] = RgbData.red;
-            //     }
-            //     // Flush RGB values to LEDs
-            //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            //     vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
-            // }
-            // start_rgb += 1;
-
-            // if (xQueueReceive(xQueue, &RgbData, portMAX_DELAY) == pdPASS)
-            // {
-            //     led_strip_pixels[0] = RgbData.green;
-            //     led_strip_pixels[1] = RgbData.blue;
-            //     led_strip_pixels[2] = RgbData.red;
-            //     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            //     // vTaskDelay(pdMS_TO_TICKS(1000));
-            // }
+            ESP_LOGI("RELAY", "Rec Data, RgbData is %d-%d-%d. ", (int)RgbData.red, (int)RgbData.green, (int)RgbData.blue);
+            led_strip_pixels[0] = (uint8_t)RgbData.green; // green
+            led_strip_pixels[1] = (uint8_t)RgbData.red;   // red
+            led_strip_pixels[2] = (uint8_t)RgbData.blue;
+            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
         }
-
-        xActivatedMember = xQueueSelectFromSet(xQueueSet, portMAX_DELAY);
-        if (xActivatedMember == xQueueRgb)
+        else
         {
-            if (xQueueReceive(xQueueRgb, &RgbData, 0) == pdPASS)
-            {
-                led_strip_pixels[0] = RgbData.green;
-                led_strip_pixels[1] = RgbData.red;
-                led_strip_pixels[2] = RgbData.blue;
-                ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-                // vTaskDelay(pdMS_TO_TICKS(1000));
-                ESP_LOGI("RGB", " -- -- -- Rec Data -- -- --");
-            }
+            ESP_LOGE("RELAY", "Rec Data timeout. ");
         }
     }
 }
