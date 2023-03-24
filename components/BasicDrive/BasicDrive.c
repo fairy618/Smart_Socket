@@ -189,7 +189,7 @@ void Task_WS2812(void *pvParameters)
 
     while (1)
     {
-        if (xQueueReceive(xQueuerRgb_g, &RgbData, portMAX_DELAY) == pdPASS)
+        if (xQueueReceive(xQueueRgb_g, &RgbData, portMAX_DELAY) == pdPASS)
         {
             ESP_LOGI("RELAY", "Rec Data, RgbData is %d-%d-%d. ", (int)RgbData.red, (int)RgbData.green, (int)RgbData.blue);
             led_strip_pixels[0] = (uint8_t)RgbData.green; // green

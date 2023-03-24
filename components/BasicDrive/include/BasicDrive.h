@@ -45,7 +45,7 @@ typedef struct
 
 
 extern QueueHandle_t xQueueRelay_g;
-extern QueueHandle_t xQueuerRgb_g;
+extern QueueHandle_t xQueueRgb_g;
 
 void Task_key(void *pvParameters);
 void Task_LED(void *pvParameters);

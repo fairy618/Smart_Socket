@@ -66,7 +66,7 @@ typedef struct
 } alMQTT_data_t;
 
 extern QueueHandle_t xQueueRelay_g;
-extern QueueHandle_t xQueuerRgb_g;
+extern QueueHandle_t xQueueRgb_g;
 extern QueueHandle_t xQueueSensor_g;
 
 

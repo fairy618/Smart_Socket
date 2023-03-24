@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include "BH1750.h"
 #include "SHTC3.h"
 #include "HLW032.h"
@@ -10,10 +11,10 @@
 // QueueHandle_t xQueueRelay = NULL;
 // QueueHandle_t xQueueRgb = NULL;
 QueueHandle_t xQueueRelay_g = NULL;
-QueueHandle_t xQueuerRgb_g = NULL;
+QueueHandle_t xQueueRgb_g = NULL;
 QueueHandle_t xQueueSensor_g = NULL;
 
-void app_main(void)
+_Noreturn void app_main(void)
 {
     int LedTaskBlinkTime = 1000;
 
@@ -21,7 +22,7 @@ void app_main(void)
 
     // xQueueElectric = xQueueCreate(5, sizeof(ElectricalParameter_t));
     xQueueRelay_g = xQueueCreate(5, sizeof(bool));
-    xQueuerRgb_g = xQueueCreate(5, sizeof(rgb_data_t));
+    xQueueRgb_g = xQueueCreate(5, sizeof(rgb_data_t));
     xQueueSensor_g = xQueueCreate(5, sizeof(Sensor_data_t));
 
     // if ((xQueueSensor == NULL) || (xQueueElectric == NULL) || (xQueueRelay_g == NULL) || (xQueueRgb == NULL))

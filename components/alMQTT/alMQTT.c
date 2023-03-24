@@ -319,7 +319,7 @@ void Task_ali_mqqt(void *pvParameters)
         {
             RgbRecFlag = 0;
 
-            if (xQueueSend(xQueuerRgb_g, (void *)&RgbRecData, pdMS_TO_TICKS(100)) == pdPASS)
+            if (xQueueSend(xQueueRgb_g, (void *)&RgbRecData, pdMS_TO_TICKS(100)) == pdPASS)
             {
                 ESP_LOGI("ALMQTT", " --- Send RgbRecData to xQueue done! --- ");
             }
