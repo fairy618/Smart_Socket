@@ -68,6 +68,7 @@ typedef struct
 extern QueueHandle_t xQueueRelay_g;
 extern QueueHandle_t xQueueRgb_g;
 extern QueueHandle_t xQueueSensor_g;
+extern QueueHandle_t xQueueElectric_g;
 
 
 int32_t al_send_delete_desred_requset(void *dm_handle);
@@ -76,7 +77,7 @@ int32_t al_send_event_post(void *dm_handle, char *event_id, char *params);
 int32_t al_send_property_batch_post(void *dm_handle, char *params);
 int32_t demo_send_property_post(void *dm_handle, char *params);
 void WifiConnect(void);
-void Task_ali_mqqt(void *pvParameters);
+void Task_ali_mqtt(void *pvParameters);
 void *demo_mqtt_recv_thread(void *args);
 void *demo_mqtt_process_thread(void *args);
 void al_mqtt_recv_handler(void *handle, const aiot_mqtt_recv_t *packet, void *userdata);

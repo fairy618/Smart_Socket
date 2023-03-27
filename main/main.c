@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 #include "BH1750.h"
 #include "SHTC3.h"
 #include "HLW032.h"
@@ -13,23 +12,22 @@
 QueueHandle_t xQueueRelay_g = NULL;
 QueueHandle_t xQueueRgb_g = NULL;
 QueueHandle_t xQueueSensor_g = NULL;
+QueueHandle_t xQueueElectric_g = NULL;
 
 _Noreturn void app_main(void)
 {
     int LedTaskBlinkTime = 1000;
 
-    // xQueueSet = xQueueCreateSet(20);
-
-    // xQueueElectric = xQueueCreate(5, sizeof(ElectricalParameter_t));
     xQueueRelay_g = xQueueCreate(5, sizeof(bool));
     xQueueRgb_g = xQueueCreate(5, sizeof(rgb_data_t));
     xQueueSensor_g = xQueueCreate(5, sizeof(Sensor_data_t));
+    xQueueElectric_g = xQueueCreate(5, sizeof(ElectricalParameter_t));
 
-    // if ((xQueueSensor == NULL) || (xQueueElectric == NULL) || (xQueueRelay_g == NULL) || (xQueueRgb == NULL))
-    // {
-    //     ESP_LOGE("QUEUE", "Can not creat queue!");
-    //     esp_restart();
-    // }
+     if ((xQueueElectric_g == NULL) || (xQueueRelay_g == NULL) || (xQueueRgb_g == NULL) || (xQueueSensor_g == NULL))
+     {
+         ESP_LOGE("QUEUE", "Can not creat queue!");
+         esp_restart();
+     }
 
     xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
@@ -45,7 +43,7 @@ _Noreturn void app_main(void)
 
     WifiConnect();
 
-    xTaskCreate(Task_ali_mqqt, "Task_ali_mqqt", 2048 * 2, NULL, 5, NULL);
+    xTaskCreate(Task_ali_mqtt, "Task_ali_mqtt", 2048 * 2, NULL, 5, NULL);
 
     while (1)
     {

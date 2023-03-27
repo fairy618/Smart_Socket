@@ -31,7 +31,10 @@
 #define HLW8032_VOLTAGE_COEF (1.88f)
 #define HLW8032_CURRENT_COFE (1.00f)
 
-#define HLW8032_UATR_DATA_LEN (24)
+#define HLW8032_UART_DATA_LEN (24)
+
+extern QueueHandle_t xQueueElectric_g;
+
 
 typedef struct
 {
