@@ -31,7 +31,7 @@ _Noreturn void app_main(void)
 
     xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
-    xTaskCreate(Task_sensor, "Task_sensor", 2048 * 2, NULL, 5, NULL);
+//    xTaskCreate(Task_sensor, "Task_sensor", 2048 * 2, NULL, 5, NULL);
 
     xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 2048 * 2, NULL, 2, NULL);
 
@@ -43,7 +43,7 @@ _Noreturn void app_main(void)
 
     WifiConnect();
 
-    xTaskCreate(Task_ali_mqtt, "Task_ali_mqtt", 2048 * 2, NULL, 5, NULL);
+//    xTaskCreate(Task_ali_mqtt, "Task_ali_mqtt", 2048 * 2, NULL, 5, NULL);
 
     while (1)
     {

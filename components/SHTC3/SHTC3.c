@@ -69,16 +69,16 @@ void Task_sensor(void *pvParameters)
             Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
             bh1750_read_data(&Sensor_data.LightIntensity);
 
-            if (xQueueSend(xQueueSensor_g, (void *)&Sensor_data, 0) == pdPASS)
-            {
-                ESP_LOGI("SENSOR", " --- Send Sensor_data to xQueue done! --- ");
-            }
-            else
-            {
-                ESP_LOGE("SENSOR", " --- Send Sensor_data to xQueue fail! --- ");
-            }
+//            if (xQueueSend(xQueueSensor_g, (void *)&Sensor_data, 0) == pdPASS)
+//            {
+//                ESP_LOGI("SENSOR", " --- Send Sensor_data to xQueue done! --- ");
+//            }
+//            else
+//            {
+//                ESP_LOGE("SENSOR", " --- Send Sensor_data to xQueue fail! --- ");
+//            }
 
-            ESP_LOGI("SENSOR", "EnvironmentTemperature is %.2f℃, ChipTemperature is %.2f℃, EnvHumidity is %.2f%%, LightIntensity is %d. ", Sensor_data.EnvironmentTemperature, Sensor_data.ChipTemperature, Sensor_data.EnvHumidity, Sensor_data.LightIntensity);
+            ESP_LOGI("SENSOR", "EnvironmentTemperature is %.2f℃, ChipTemperature is %.2f℃, EnvHumidity is %.2f%%, LightIntensity is %d lm. ", Sensor_data.EnvironmentTemperature, Sensor_data.ChipTemperature, Sensor_data.EnvHumidity, Sensor_data.LightIntensity);
         }
         if (HighWaterMark)
         {
@@ -163,10 +163,10 @@ esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf)
     esp_err_t err = ESP_OK;
 
     err = shtc3_wakeup();
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
-    err = shtc3_write_cmd(SHTC3_MEASURE_CMD_4);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    err = shtc3_write_cmd(SHTC3_MEASURE_CMD_2);
+    // vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // RH first
     err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
@@ -190,6 +190,7 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
 
     esp_err_t err;
 
+
     for (byte = 0; byte < ByteNbr; byte++)
     {
         crc ^= Inputdata[byte];
@@ -209,10 +210,12 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
     if (crc != CheckSum)
     {
         err = ESP_FAIL;
+        ESP_LOGE("CRC & CheckSum", "%#X - %#X => %#X/%#X", Inputdata[0], Inputdata[1], CheckSum, crc);
     }
     else
     {
         err = ESP_OK;
+        ESP_LOGI("CRC & CheckSum", "%#X - %#X => %#X/%#X", Inputdata[0], Inputdata[1], CheckSum, crc);
     }
 
     return err;
