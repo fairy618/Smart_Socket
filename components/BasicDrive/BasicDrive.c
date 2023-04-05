@@ -195,7 +195,7 @@ void Task_WS2812(void *pvParameters)
             // Build RGB pixels
 //            hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
             hue = j * 360 + start_rgb;
-            led_strip_hsv2rgb(hue, 100, 25, &RgbData.red, &RgbData.green, &RgbData.blue);
+            led_strip_hsv2rgb(hue, 100, 10, &RgbData.red, &RgbData.green, &RgbData.blue);
             led_strip_pixels[j * 3 + 0] = RgbData.green;
             led_strip_pixels[j * 3 + 1] = RgbData.blue;
             led_strip_pixels[j * 3 + 2] = RgbData.red;

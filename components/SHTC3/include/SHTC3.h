@@ -14,7 +14,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
-#define SENSOR_INTERVAL_TIME_MS 1000
+#define SENSOR_INTERVAL_TIME_MS 1000 * 30
 
 #define I2C_MASTER_SCL_PIN 7        /*!< GPIO number used for I2C master clock */
 #define I2C_MASTER_SDA_PIN 6        /*!< GPIO number used for I2C master data  */

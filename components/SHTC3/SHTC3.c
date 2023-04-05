@@ -16,10 +16,10 @@ void Task_sensor(void *pvParameters)
     bool HighWaterMark = 1;
 
     i2c_master_init();
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     shtc3_wakeup();
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     shtc3_read_out_id(ID_Register);
     ESP_LOGI("SHTC3 ID", "The ID Reg is 0x%02x%02x ", ID_Register[0], ID_Register[1]);
@@ -46,40 +46,49 @@ void Task_sensor(void *pvParameters)
     {
         vTaskDelay(SENSOR_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
 
+        // chip temp
+        temperature_sensor_get_celsius(temp_sensor, &Sensor_data.ChipTemperature);
+        ESP_LOGI("SENSOR", " ChipTemperature is %.2f℃. ", Sensor_data.ChipTemperature);
+
+        // env light intensity
+        bh1750_read_data(&Sensor_data.LightIntensity);
+        ESP_LOGI("SENSOR", " LightIntensity is %d lm. ", Sensor_data.LightIntensity);
+
+        // env temp&RH
         shtc3_measure_normal_rh_dis_clocks(struct_shtc3_data.row_data);
 
         struct_shtc3_data.flag_humidity = shtc3_crc_check(struct_shtc3_data.row_data, 2, struct_shtc3_data.row_data[2]);
-        struct_shtc3_data.flag_temperature = shtc3_crc_check(struct_shtc3_data.row_data + 3 * sizeof(uint8_t), 2, struct_shtc3_data.row_data[5]);
+        struct_shtc3_data.flag_temperature = shtc3_crc_check(struct_shtc3_data.row_data + 3 * sizeof(uint8_t), 2,
+                                                             struct_shtc3_data.row_data[5]);
 
         if (struct_shtc3_data.flag_humidity != ESP_OK || struct_shtc3_data.flag_temperature != ESP_OK)
         {
-            ESP_LOGE("SHTC3 CRC CHECK", "There are somgthing wrong whit shtc3");
+            ESP_LOGE("SHTC3 CRC CHECK", "There are something wrong whit shtc3");
             continue;
-        }
-        else // Valid crc check
+        } else // Valid crc check
         {
             struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
             struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
 
-            struct_shtc3_data.humidity = (float)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
-            struct_shtc3_data.temperature = struct_shtc3_data.row_temperature * 175.0 / 65536.0 - 45.0;
+            struct_shtc3_data.humidity = (float) (struct_shtc3_data.row_humidity * 100.0 / 65536.0);
+            struct_shtc3_data.temperature = (float) (struct_shtc3_data.row_temperature) * 175.0 / 65536.0 - 45.0;
 
-            temperature_sensor_get_celsius(temp_sensor, &Sensor_data.ChipTemperature);
             Sensor_data.EnvHumidity = struct_shtc3_data.humidity;
             Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
-            bh1750_read_data(&Sensor_data.LightIntensity);
 
-//            if (xQueueSend(xQueueSensor_g, (void *)&Sensor_data, 0) == pdPASS)
-//            {
-//                ESP_LOGI("SENSOR", " --- Send Sensor_data to xQueue done! --- ");
-//            }
-//            else
-//            {
-//                ESP_LOGE("SENSOR", " --- Send Sensor_data to xQueue fail! --- ");
-//            }
+            ESP_LOGI("SENSOR", " EnvironmentTemperature is %.2f℃, EnvHumidity is %.2f%%. ",
+                     Sensor_data.EnvironmentTemperature, Sensor_data.EnvHumidity);
 
-            ESP_LOGI("SENSOR", "EnvironmentTemperature is %.2f℃, ChipTemperature is %.2f℃, EnvHumidity is %.2f%%, LightIntensity is %d lm. ", Sensor_data.EnvironmentTemperature, Sensor_data.ChipTemperature, Sensor_data.EnvHumidity, Sensor_data.LightIntensity);
         }
+
+        if (xQueueSend(xQueueSensor_g, (void *) &Sensor_data, 0) == pdPASS)
+        {
+            ESP_LOGD("SENSOR", " --- Send Sensor_data to xQueue done! --- ");
+        } else
+        {
+            ESP_LOGD("SENSOR", " --- Send Sensor_data to xQueue fail! --- ");
+        }
+
         if (HighWaterMark)
         {
             HighWaterMark = 0;
@@ -117,10 +126,11 @@ esp_err_t i2c_master_init(void)
  */
 esp_err_t shtc3_read_out_id(uint8_t *id_reg)
 {
-    uint8_t write_buffer[2] = {(uint8_t)(SHTC3_READ_ID_REGISTER >> 8), (uint8_t)SHTC3_READ_ID_REGISTER};
+    uint8_t write_buffer[2] = {(uint8_t) (SHTC3_READ_ID_REGISTER >> 8), (uint8_t) SHTC3_READ_ID_REGISTER};
     size_t read_size = 3;
 
-    return i2c_master_write_read_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), id_reg, read_size, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    return i2c_master_write_read_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), id_reg,
+                                        read_size, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
 /*
@@ -130,9 +140,10 @@ esp_err_t shtc3_read_out_id(uint8_t *id_reg)
  */
 esp_err_t shtc3_write_cmd(uint16_t shtc3_cmd)
 {
-    uint8_t write_buffer[2] = {(uint8_t)(shtc3_cmd >> 8), (uint8_t)shtc3_cmd};
+    uint8_t write_buffer[2] = {(uint8_t) (shtc3_cmd >> 8), (uint8_t) shtc3_cmd};
 
-    return i2c_master_write_to_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    return i2c_master_write_to_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, write_buffer, sizeof(write_buffer),
+                                      I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
 /*
@@ -163,13 +174,16 @@ esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf)
     esp_err_t err = ESP_OK;
 
     err = shtc3_wakeup();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    vTaskDelay(20 / portTICK_PERIOD_MS);
+
+    err = shtc3_write_cmd(SHTC3_RESET_COMMAND);
+    vTaskDelay(20 / portTICK_PERIOD_MS);
 
     err = shtc3_write_cmd(SHTC3_MEASURE_CMD_2);
-    // vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // RH first
-    err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6,
+                                      I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 
     err = shtc3_sleep();
 
@@ -190,7 +204,6 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
 
     esp_err_t err;
 
-
     for (byte = 0; byte < ByteNbr; byte++)
     {
         crc ^= Inputdata[byte];
@@ -199,8 +212,7 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
             if (crc & 0x80)
             {
                 crc = (crc << 1) ^ 0x31;
-            }
-            else
+            } else
             {
                 crc = (crc << 1);
             }
@@ -210,12 +222,11 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
     if (crc != CheckSum)
     {
         err = ESP_FAIL;
-        ESP_LOGE("CRC & CheckSum", "%#X - %#X => %#X/%#X", Inputdata[0], Inputdata[1], CheckSum, crc);
-    }
-    else
+        ESP_LOGD("CRC & CheckSum", "%#X - %#X => %#X/%#X", Inputdata[0], Inputdata[1], CheckSum, crc);
+    } else
     {
         err = ESP_OK;
-        ESP_LOGI("CRC & CheckSum", "%#X - %#X => %#X/%#X", Inputdata[0], Inputdata[1], CheckSum, crc);
+        ESP_LOGD("CRC & CheckSum", "%#X - %#X => %#X/%#X", Inputdata[0], Inputdata[1], CheckSum, crc);
     }
 
     return err;

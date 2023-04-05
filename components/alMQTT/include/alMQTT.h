@@ -70,7 +70,6 @@ extern QueueHandle_t xQueueRgb_g;
 extern QueueHandle_t xQueueSensor_g;
 extern QueueHandle_t xQueueElectric_g;
 
-
 int32_t al_send_delete_desred_requset(void *dm_handle);
 int32_t al_send_get_desred_requset(void *dm_handle);
 int32_t al_send_event_post(void *dm_handle, char *event_id, char *params);

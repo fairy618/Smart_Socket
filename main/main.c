@@ -4,11 +4,6 @@
 #include "BasicDrive.h"
 #include "alMQTT.h"
 
-// QueueSetHandle_t xQueueSet = NULL;
-
-// QueueHandle_t xQueueElectric = NULL;
-// QueueHandle_t xQueueRelay = NULL;
-// QueueHandle_t xQueueRgb = NULL;
 QueueHandle_t xQueueRelay_g = NULL;
 QueueHandle_t xQueueRgb_g = NULL;
 QueueHandle_t xQueueSensor_g = NULL;
@@ -31,19 +26,19 @@ _Noreturn void app_main(void)
 
     xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
-//    xTaskCreate(Task_sensor, "Task_sensor", 2048 * 2, NULL, 5, NULL);
+    xTaskCreate(Task_sensor, "Task_sensor", 2048 * 2, NULL, 5, NULL);
 
     xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 2048 * 2, NULL, 2, NULL);
 
     xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
 
-    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
+//    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
 
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 1, NULL);
 
     WifiConnect();
 
-//    xTaskCreate(Task_ali_mqtt, "Task_ali_mqtt", 2048 * 2, NULL, 5, NULL);
+    xTaskCreate(Task_ali_mqtt, "Task_ali_mqtt", 2048 * 2, NULL, 5, NULL);
 
     while (1)
     {
