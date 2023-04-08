@@ -28,9 +28,9 @@ void Task_Cloud(void *pvParameters)
     // ESP_ERROR_CHECK(example_driver_init());
 
     /**< Continuous power off and restart more than five times to reset the device */
-    if (esp_qcloud_reboot_unbroken_count() >= CONFIG_LIGHT_REBOOT_UNBROKEN_COUNT_RESET)
+    if (esp_qcloud_reboot_unbroken_count() >= REBOOT_UNBROKEN_COUNT_RESET)
     {
-        ESP_LOGW(TAG, "Erase information saved in flash");
+        ESP_LOGW("cloud", "Erase information saved in flash");
         esp_qcloud_storage_erase(CONFIG_QCLOUD_NVS_NAMESPACE);
     }
 
@@ -98,7 +98,7 @@ static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
     //     val->i = lightbulb_get_saturation();
     // }
 
-    // ESP_LOGI(TAG, "Report id: %s, val: %d", id, val->i);
+    // ESP_LOGI("cloud", "Report id: %s, val: %d", id, val->i);
 
     return ESP_OK;
 }
@@ -107,7 +107,7 @@ static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
 static esp_err_t cloud_set_param(const char *id, const esp_qcloud_param_val_t *val)
 {
     // esp_err_t err = ESP_FAIL;
-    // ESP_LOGI(TAG, "Received id: %s, val: %d", id, val->i);
+    // ESP_LOGI("cloud", "Received id: %s, val: %d", id, val->i);
 
     // if (!strcmp(id, "power_switch")) {
     //     err = lightbulb_set_switch(val->b);
@@ -118,7 +118,7 @@ static esp_err_t cloud_set_param(const char *id, const esp_qcloud_param_val_t *v
     // } else if (!strcmp(id, "saturation")) {
     //     err = lightbulb_set_saturation(val->i);
     // } else {
-    //     ESP_LOGW(TAG, "This parameter is not supported");
+    //     ESP_LOGW("cloud", "This parameter is not supported");
     // }
 
     // /* Report driver changes to the cloud side */
@@ -135,7 +135,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
     {
     case QCLOUD_EVENT_IOTHUB_INIT_DONE:
         esp_qcloud_iothub_report_device_info();
-        ESP_LOGI(TAG, "QCloud Initialised");
+        ESP_LOGI("cloud", "QCloud Initialised");
         break;
 
     case QCLOUD_EVENT_IOTHUB_BOUND_DEVICE:
@@ -143,27 +143,27 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 #ifdef CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG
         esp_qcloud_prov_softapconfig_stop();
 #endif
-        ESP_LOGI(TAG, "Device binding successful");
+        ESP_LOGI("cloud", "Device binding successful");
         break;
 
     case QCLOUD_EVENT_IOTHUB_UNBOUND_DEVICE:
-        ESP_LOGW(TAG, "Device unbound with iothub");
+        ESP_LOGW("cloud", "Device unbound with iothub");
         esp_qcloud_wifi_reset();
         esp_restart();
         break;
 
     case QCLOUD_EVENT_IOTHUB_BIND_EXCEPTION:
-        ESP_LOGW(TAG, "Device bind fail");
+        ESP_LOGW("cloud", "Device bind fail");
         esp_qcloud_wifi_reset();
         esp_restart();
         break;
 
     case QCLOUD_EVENT_IOTHUB_RECEIVE_STATUS:
-        ESP_LOGI(TAG, "receive status message: %s", (char *)event_data);
+        ESP_LOGI("cloud", "receive status message: %s", (char *)event_data);
         break;
 
     default:
-        ESP_LOGW(TAG, "Unhandled QCloud Event: %" PRIu32 "", event_id);
+        ESP_LOGW("cloud", "Unhandled QCloud Event: %" PRIu32 "", event_id);
     }
 }
 
