@@ -47,7 +47,7 @@ typedef struct esp_qcloud_time_config {
 #define ESP_QCLOUD_ERROR_CHECK(con, err, format, ...) do { \
         if (con) { \
             if(*format != '\0') \
-                ESP_LOGW(TAG, "<%s> " format, esp_err_to_name(err), ##__VA_ARGS__); \
+                ESP_LOGW("esp_qcloud_utils.h", "<%s> " format, esp_err_to_name(err), ##__VA_ARGS__); \
             return err; \
         } \
     } while(0)
@@ -67,7 +67,7 @@ typedef struct esp_qcloud_time_config {
 #define ESP_QCLOUD_ERROR_ASSERT(err) do { \
         esp_err_t __err_rc = (err); \
         if (__err_rc != ESP_OK) { \
-            ESP_LOGW(TAG, "<%s> ESP_QCLOUD_ERROR_ASSERT failed, at 0x%08x, expression: %s", \
+            ESP_LOGW("esp_qcloud_utils.h", "<%s> ESP_QCLOUD_ERROR_ASSERT failed, at 0x%08x, expression: %s", \
                      esp_err_to_name(__err_rc), (intptr_t)__builtin_return_address(0) - 3, __ASSERT_FUNC); \
             assert(0 && #err); \
         } \
@@ -76,7 +76,7 @@ typedef struct esp_qcloud_time_config {
 #define ESP_QCLOUD_ERROR_GOTO(con, label, format, ...) do { \
         if (con) { \
             if(*format != '\0') \
-                ESP_LOGW(TAG, format, ##__VA_ARGS__); \
+                ESP_LOGW("esp_qcloud_utils.h", format, ##__VA_ARGS__); \
             goto label; \
         } \
     } while(0)
@@ -84,7 +84,7 @@ typedef struct esp_qcloud_time_config {
 #define ESP_QCLOUD_ERROR_CONTINUE(con, format, ...) { \
         if (con) { \
             if(*format != '\0') \
-                ESP_LOGW(TAG, format, ##__VA_ARGS__); \
+                ESP_LOGW("esp_qcloud_utils.h", format, ##__VA_ARGS__); \
             continue; \
         } \
     }
@@ -92,14 +92,14 @@ typedef struct esp_qcloud_time_config {
 #define ESP_QCLOUD_ERROR_BREAK(con, format, ...) { \
         if (con) { \
             if(*format != '\0') \
-                ESP_LOGW(TAG, format, ##__VA_ARGS__); \
+                ESP_LOGW("esp_qcloud_utils.h", format, ##__VA_ARGS__); \
             break; \
         } \
     }
 
 #define ESP_QCLOUD_PARAM_CHECK(con) do { \
         if (!(con)) { \
-            ESP_LOGE(TAG, "<ESP_QCLOUD_ERR_INVALID_ARG> !(%s)", #con); \
+            ESP_LOGE("esp_qcloud_utils.h", "<ESP_QCLOUD_ERR_INVALID_ARG> !(%s)", #con); \
             return ESP_ERR_INVALID_ARG; \
         } \
     } while(0)
