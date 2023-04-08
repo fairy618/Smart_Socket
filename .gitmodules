@@ -1,0 +1,3 @@
+[submodule "components/qcloud"]
+	path = components/qcloud
+	url = https://github.com/espressif/esp-qcloud.git
