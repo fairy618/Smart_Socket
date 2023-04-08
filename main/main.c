@@ -2,7 +2,6 @@
 #include "SHTC3.h"
 #include "HLW032.h"
 #include "BasicDrive.h"
-#include "alMQTT.h"
 
 _Noreturn void app_main(void)
 {
