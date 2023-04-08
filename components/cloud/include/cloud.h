@@ -17,6 +17,9 @@
 #include "esp_qcloud_iothub.h"
 #include "esp_qcloud_prov.h"
 
+#define CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG 1
+#define CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG_SSID "SmartSocket_v230407"
+
 #define REBOOT_UNBROKEN_COUNT_RESET 5
 
 void Task_Cloud(void *pvParameters);
