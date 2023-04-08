@@ -1,6 +1,13 @@
 #ifndef __CLOUD_H__
 #define __CLOUD_H__
 
+#include "esp_err.h"
+#include "esp_qcloud_log.h"
+#include "esp_qcloud_console.h"
+#include "esp_qcloud_storage.h"
+#include "esp_qcloud_iothub.h"
+#include "esp_qcloud_prov.h"
+
 #define REBOOT_UNBROKEN_COUNT_RESET 5
 
 static esp_err_t get_wifi_config(wifi_config_t *wifi_cfg, uint32_t wait_ms);
