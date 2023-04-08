@@ -2,6 +2,7 @@
 #include "SHTC3.h"
 #include "HLW032.h"
 #include "BasicDrive.h"
+#include "cloud.h"
 
 _Noreturn void app_main(void)
 {
