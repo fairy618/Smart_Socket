@@ -1,7 +1,16 @@
 #ifndef __CLOUD_H__
 #define __CLOUD_H__
 
+#include <stdio.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+
+#include "esp_log.h"
 #include "esp_err.h"
+
 #include "esp_qcloud_log.h"
 #include "esp_qcloud_console.h"
 #include "esp_qcloud_storage.h"
