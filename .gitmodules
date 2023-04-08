@@ -1,3 +1,6 @@
 [submodule "components/qcloud"]
 	path = components/qcloud
 	url = https://github.com/fairy618/esp-qcloud.git
+[submodule "components/espqcloud"]
+	path = components/espqcloud
+	url = https://github.com/fairy618/esp-qcloud.git
