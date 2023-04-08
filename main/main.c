@@ -26,9 +26,11 @@ _Noreturn void app_main(void)
 
     xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
 
-   xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
+    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
 
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 1, NULL);
+
+    xTaskCreate(Task_Cloud, "Task_Cloud", 2048 * 2, NULL, 6, NULL);
 
     while (1)
     {
