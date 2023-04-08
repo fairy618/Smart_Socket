@@ -57,3 +57,4 @@ sdkconfig.old
 /build/*
 /.vscode/*
 main.json
+sdkconfig
