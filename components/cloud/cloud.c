@@ -84,6 +84,11 @@ void Task_Cloud(void *pvParameters)
     ESP_ERROR_CHECK(esp_qcloud_iothub_init());
     ESP_ERROR_CHECK(esp_qcloud_iothub_start());
     ESP_ERROR_CHECK(esp_qcloud_iothub_ota_enable());
+
+    while (1)
+    {
+        vTaskDelay(20 / portTICK_PERIOD_MS);
+    }
 }
 
 /* Callback to handle commands received from the QCloud cloud */
