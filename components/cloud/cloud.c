@@ -88,6 +88,33 @@ void Task_Cloud(void *pvParameters)
 /* Callback to handle commands received from the QCloud cloud */
 static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
 {
+
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_switch", QCLOUD_VAL_TYPE_BOOLEAN));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("TimeCountDown", QCLOUD_VAL_TYPE_BOOLEAN));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("voltage", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("current", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("EnvRH", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("EnvTemp", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("ChipTemp", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("Light", QCLOUD_VAL_TYPE_INTEGER));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("active_power", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("reactive_power", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_factor", QCLOUD_VAL_TYPE_FLOAT));
+    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("Electricity_consumption", QCLOUD_VAL_TYPE_FLOAT));
+
+    if (!strcmp(id, "EnvTemp"))
+    {
+        val->f = lightbulb_get_switch();
+    }
+    /*
+    todo:
+    定义结构体 把要传递的数据用结构体包裹起来
+
+    队列邮箱
+
+    调用函数 直接读
+    */
+
     // if (!strcmp(id, "power_switch")) {
     //     val->b = lightbulb_get_switch();
     // } else if (!strcmp(id, "value")) {
