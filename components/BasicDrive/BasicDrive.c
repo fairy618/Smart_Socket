@@ -54,14 +54,6 @@ void Task_key(void *pvParameters)
                 if (KeyValue == 1)
                 {
                     RelayState = !RelayState;
-                    if (xQueueSend(xQueueRelay_g, (void *)&RelayState, 0) == pdPASS)
-                    {
-                        ESP_LOGI("KEY", " --- Send RelayState to xQueue done! --- ");
-                    }
-                    else
-                    {
-                        ESP_LOGE("KEY", " --- Send RelayState to xQueue fail! --- ");
-                    }
                 }
                 else if (KeyValue == 2)
                 {
@@ -88,22 +80,7 @@ void Task_Relay(void *pvParameters)
 
     while (1)
     {
-        if (xQueueReceive(xQueueRelay_g, &RelayState, portMAX_DELAY) == pdPASS)
-        {
-            ESP_LOGI("RELAY", "Rec Data, RelayState is %d. ", (RelayState == 0 ? 0 : 1));
-            if (RelayState)
-            {
-                Relay_ledc_set_duty(80);
-            }
-            else
-            {
-                Relay_ledc_set_duty(0);
-            }
-        }
-        else
-        {
-            ESP_LOGE("RELAY", "Rec Data timeout. ");
-        }
+        vTaskDelay(20 / portTICK_PERIOD_MS);
 
         if (HighWaterMark)
         {

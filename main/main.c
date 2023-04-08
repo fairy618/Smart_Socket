@@ -4,25 +4,20 @@
 #include "BasicDrive.h"
 #include "alMQTT.h"
 
-QueueHandle_t xQueueRelay_g = NULL;
-QueueHandle_t xQueueRgb_g = NULL;
-QueueHandle_t xQueueSensor_g = NULL;
-QueueHandle_t xQueueElectric_g = NULL;
-
 _Noreturn void app_main(void)
 {
     int LedTaskBlinkTime = 1000;
 
-    xQueueRelay_g = xQueueCreate(5, sizeof(bool));
-    xQueueRgb_g = xQueueCreate(5, sizeof(rgb_data_t));
-    xQueueSensor_g = xQueueCreate(5, sizeof(Sensor_data_t));
-    xQueueElectric_g = xQueueCreate(5, sizeof(ElectricalParameter_t));
+    // xQueueRelay_g = xQueueCreate(5, sizeof(bool));
+    // xQueueRgb_g = xQueueCreate(5, sizeof(rgb_data_t));
+    // xQueueSensor_g = xQueueCreate(5, sizeof(Sensor_data_t));
+    // xQueueElectric_g = xQueueCreate(5, sizeof(ElectricalParameter_t));
 
-     if ((xQueueElectric_g == NULL) || (xQueueRelay_g == NULL) || (xQueueRgb_g == NULL) || (xQueueSensor_g == NULL))
-     {
-         ESP_LOGE("QUEUE", "Can not creat queue!");
-         esp_restart();
-     }
+    //  if ((xQueueElectric_g == NULL) || (xQueueRelay_g == NULL) || (xQueueRgb_g == NULL) || (xQueueSensor_g == NULL))
+    //  {
+    //      ESP_LOGE("QUEUE", "Can not creat queue!");
+    //      esp_restart();
+    //  }
 
     xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
@@ -32,13 +27,9 @@ _Noreturn void app_main(void)
 
     xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
 
-//    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
+   xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
 
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 1, NULL);
-
-    WifiConnect();
-
-    xTaskCreate(Task_ali_mqtt, "Task_ali_mqtt", 2048 * 2, NULL, 5, NULL);
 
     while (1)
     {

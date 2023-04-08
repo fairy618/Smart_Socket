@@ -33,9 +33,6 @@
 
 #define HLW8032_UART_DATA_LEN (24)
 
-extern QueueHandle_t xQueueElectric_g;
-
-
 typedef struct
 {
     uint8_t State;
