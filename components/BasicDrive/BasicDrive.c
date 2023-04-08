@@ -80,7 +80,17 @@ void Task_Relay(void *pvParameters)
 
     while (1)
     {
-        vTaskDelay(20 / portTICK_PERIOD_MS);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        RelayState = !RelayState;
+
+        if (RelayState)
+        {
+            Relay_ledc_set_duty(80);
+        }
+        else
+        {
+            Relay_ledc_set_duty(0);
+        }
 
         if (HighWaterMark)
         {
@@ -166,36 +176,36 @@ void Task_WS2812(void *pvParameters)
 
     while (1)
     {
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = i; j < RMT_LED_NUMBERS; j += 3) {
-            // Build RGB pixels
-//            hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
-            hue = j * 360 + start_rgb;
-            led_strip_hsv2rgb(hue, 100, 10, &RgbData.red, &RgbData.green, &RgbData.blue);
-            led_strip_pixels[j * 3 + 0] = RgbData.green;
-            led_strip_pixels[j * 3 + 1] = RgbData.blue;
-            led_strip_pixels[j * 3 + 2] = RgbData.red;
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = i; j < RMT_LED_NUMBERS; j += 3)
+            {
+                // Build RGB pixels
+                //            hue = j * 360 / RMT_LED_NUMBERS + start_rgb;
+                hue = j * 360 + start_rgb;
+                led_strip_hsv2rgb(hue, 100, 10, &RgbData.red, &RgbData.green, &RgbData.blue);
+                led_strip_pixels[j * 3 + 0] = RgbData.green;
+                led_strip_pixels[j * 3 + 1] = RgbData.blue;
+                led_strip_pixels[j * 3 + 2] = RgbData.red;
+            }
+            // Flush RGB values to LEDs
+            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+            vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
         }
-        // Flush RGB values to LEDs
-        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-        vTaskDelay(pdMS_TO_TICKS(RMT_LED_CHASE_SPEED_MS));
-    }
-    start_rgb += 3;
+        start_rgb += 3;
 
-
-//        if (xQueueReceive(xQueueRgb_g, &RgbData, portMAX_DELAY) == pdPASS)
-//        {
-//            ESP_LOGI("RELAY", "Rec Data, RgbData is %d-%d-%d. ", (int)RgbData.red, (int)RgbData.green, (int)RgbData.blue);
-//            led_strip_pixels[0] = (uint8_t)RgbData.green; // green
-//            led_strip_pixels[1] = (uint8_t)RgbData.red;   // red
-//            led_strip_pixels[2] = (uint8_t)RgbData.blue;
-//            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-//        }
-//        else
-//        {
-//            ESP_LOGE("RELAY", "Rec Data timeout. ");
-//        }
+        //        if (xQueueReceive(xQueueRgb_g, &RgbData, portMAX_DELAY) == pdPASS)
+        //        {
+        //            ESP_LOGI("RELAY", "Rec Data, RgbData is %d-%d-%d. ", (int)RgbData.red, (int)RgbData.green, (int)RgbData.blue);
+        //            led_strip_pixels[0] = (uint8_t)RgbData.green; // green
+        //            led_strip_pixels[1] = (uint8_t)RgbData.red;   // red
+        //            led_strip_pixels[2] = (uint8_t)RgbData.blue;
+        //            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+        //        }
+        //        else
+        //        {
+        //            ESP_LOGE("RELAY", "Rec Data timeout. ");
+        //        }
     }
 }
 
