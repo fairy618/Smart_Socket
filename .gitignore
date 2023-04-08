@@ -58,3 +58,5 @@ sdkconfig.old
 /.vscode/*
 main.json
 sdkconfig
+/cmake-build-debug-esp32/**
+/.idea
