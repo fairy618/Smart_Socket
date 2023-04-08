@@ -1,0 +1,140 @@
+menu "ESP QCloud Example Configuration"
+    menu "Light development board selection "
+        choice LIGHTBULB_DEMO_DRIVER_SELECT
+                bool "Demo select"
+                default LIGHTBULB_DEMO_DRIVER_SELECT_WS2812 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32H2
+                default LIGHTBULB_DEMO_DRIVER_SELECT_PWM
+                help
+                    Select the driver type you want to demonstrate
+
+                config LIGHTBULB_DEMO_DRIVER_SELECT_SM2135E
+                    bool "Demo SM2135E"
+                config LIGHTBULB_DEMO_DRIVER_SELECT_WS2812
+                    bool "Demo WS2812"
+                config LIGHTBULB_DEMO_DRIVER_SELECT_PWM
+                    bool "Demo PWM"
+        endchoice
+
+        config WS2812_LED_GPIO
+            int "WS2812 LED GPIO"
+            default 8 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32H2
+            default 18 if IDF_TARGET_ESP32S2
+            default 48 if IDF_TARGET_ESP32S3
+            default 4 if IDF_TARGET_ESP32C2
+            default 18
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_WS2812
+            help
+                Set the WS2812 RGB LED GPIO.
+
+        config WS2812_LED_NUM
+            int "WS2812 LED NUM"
+            default 1
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_WS2812
+            help
+                Set the WS2812 LED NUM.
+
+        config PWM_FREQ_HZ
+            int "PWM Frequency (hz)"
+            default 4000
+            range 2000 5000
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_PWM
+            help
+                Set the PWM Frequency (hz).
+
+        config PWM_RED_GPIO
+            int "PWM Red GPIO"
+            default 10 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S2
+            default 15 if IDF_TARGET_ESP32S3
+            default 0 if IDF_TARGET_ESP32C2
+            default 23 if IDF_TARGET_ESP32H2
+            default 25
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_PWM
+            help
+                Set the PWM Red LED GPIO.
+
+        config PWM_GREEN_GPIO
+            int "PWM Green GPIO"
+            default 6 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S2
+            default 16 if IDF_TARGET_ESP32S3
+            default 1 if IDF_TARGET_ESP32C2
+            default 24 if IDF_TARGET_ESP32H2
+            default 26
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_PWM
+            help
+                Set the PWM Green LED GPIO.
+
+        config PWM_BLUE_GPIO
+            int "PWM Blue GPIO"
+            default 7 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S2
+            default 17 if IDF_TARGET_ESP32S3
+            default 8 if IDF_TARGET_ESP32C2
+            default 25 if IDF_TARGET_ESP32H2
+            default 27
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_PWM
+            help
+                Set the PWM Blue LED GPIO.
+
+        config SM2135E_IIC_CLK_GPIO
+            int "SM2135E IIC CLK GPIO"
+            default 4
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_SM2135E
+            help
+                Set the SM2135E CLK GPIO.
+
+        config SM2135E_IIC_SDA_GPIO
+            int "SM2135E IIC SDA GPIO"
+            default 5
+            depends on LIGHTBULB_DEMO_DRIVER_SELECT_SM2135E
+            help
+                Set the SM2135E SDA GPIO.
+    endmenu
+
+menu "Light provisioning network selection"
+        config LIGHT_PROVISIONING_SMARTCONFIG
+            bool "Enable SmartConfig's smart network configuration method"
+            default n
+            help
+                Enable SmartConfig's smart network configuration method
+        
+        config LIGHT_PROVISIONING_SOFTAPCONFIG
+            bool "Enable SoftAP's network configuration method"
+            default y
+            help
+                "Enable SoftAP's network configuration method"
+
+        config LIGHT_PROVISIONING_BLECONFIG
+            depends on QCLOUD_ENABLE_BLECONFIG
+            bool "Enable BLE's network configuration method"
+            default y
+            help
+                "Enable BLE's network configuration method"
+
+        config LIGHT_PROVISIONING_SOFTAPCONFIG_SSID
+            depends on LIGHT_PROVISIONING_SOFTAPCONFIG
+            string "SoftAP ssid"
+            default "tcloud_XXX"
+            help
+                SSID (network name) for the phone to connect to.
+
+        config LIGHT_PROVISIONING_BLECONFIG_NAME
+            depends on LIGHT_PROVISIONING_BLECONFIG
+            string "BLE name"
+            default "Qcloud"
+            help
+                BLE for the phone to connect to.
+    endmenu
+
+    config LIGHT_REBOOT_UNBROKEN_COUNT_RESET
+        int "More than this number of continuous uninterrupted restarts triggers a reset of the device"
+        range 3 15
+        default 5
+        help
+            Devices without buttons trigger a device reset through continuous restart.
+
+    config LIGHT_DEBUG
+        bool "The device will be in debug mode"
+        default n
+        help
+            Debug mode device performance is only used during development.
+
+endmenu
