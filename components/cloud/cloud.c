@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "cloud.h"
+#include "cloud_data.h"
 
 void Task_Cloud(void *pvParameters)
 {
@@ -104,7 +105,7 @@ static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
 
     if (!strcmp(id, "EnvTemp"))
     {
-        val->f = lightbulb_get_switch();
+        val->f = sensor_get_env_temp();
     }
     /*
     todo:
