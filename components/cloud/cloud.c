@@ -186,7 +186,7 @@ static esp_err_t get_wifi_config(wifi_config_t *wifi_cfg, uint32_t wait_ms)
     esp_wifi_start();
 
     /**< The yellow light flashes to indicate that the device enters the state of configuring the network */
-    example_provisioning_indicate_start();
+    // example_provisioning_indicate_start();
 
     /**< Note: Smartconfig and softapconfig working at the same time will affect the configure network performance */
 
@@ -221,7 +221,7 @@ static esp_err_t get_wifi_config(wifi_config_t *wifi_cfg, uint32_t wait_ms)
     esp_qcloud_storage_set("wifi_config", wifi_cfg, sizeof(wifi_config_t));
 
     /**< Configure the network successfully to stop the light flashing */
-    example_provisioning_indicate_stop();
+    // example_provisioning_indicate_stop();
 
     return ESP_OK;
 }
