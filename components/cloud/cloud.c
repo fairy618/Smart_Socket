@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include "cloud.h"
-#include "cloud_data.h"
+
+#include "SHTC3.h"
+#include "BasicDrive.h"
+#include "HLW032.h"
 
 static esp_err_t get_wifi_config(wifi_config_t *wifi_cfg, uint32_t wait_ms);
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -50,7 +53,6 @@ void Task_Cloud(void *pvParameters)
     ESP_ERROR_CHECK(esp_qcloud_device_add_fw_version("0.0.1"));
     /**< Register the properties of the device */
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_switch", QCLOUD_VAL_TYPE_BOOLEAN));
-    ESP_ERROR_CHECK(esp_qcloud_device_add_property("TimeCountDown", QCLOUD_VAL_TYPE_BOOLEAN));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("voltage", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("current", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("EnvRH", QCLOUD_VAL_TYPE_FLOAT));
@@ -58,7 +60,7 @@ void Task_Cloud(void *pvParameters)
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("ChipTemp", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("Light", QCLOUD_VAL_TYPE_INTEGER));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("active_power", QCLOUD_VAL_TYPE_FLOAT));
-    ESP_ERROR_CHECK(esp_qcloud_device_add_property("reactive_power", QCLOUD_VAL_TYPE_FLOAT));
+    ESP_ERROR_CHECK(esp_qcloud_device_add_property("apparent_power", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_factor", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("Electricity_consumption", QCLOUD_VAL_TYPE_FLOAT));
     /**< The processing function of the communication between the device and the server */
@@ -113,9 +115,52 @@ static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
     // ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_factor", QCLOUD_VAL_TYPE_FLOAT));
     // ESP_ERROR_CHECK(esp_qcloud_device_add_property("Electricity_consumption", QCLOUD_VAL_TYPE_FLOAT));
 
+    // env sensor
     if (!strcmp(id, "EnvTemp"))
     {
         val->f = sensor_get_env_temp();
+    }
+    else if (!strcmp(id, "EnvRH"))
+    {
+        val->f = sensor_get_env_rh();
+    }
+    else if (!strcmp(id, "ChipTemp"))
+    {
+        val->f = sensor_get_chip_temp();
+    }
+    else if (!strcmp(id, "Light"))
+    {
+        val->i = sensor_get_env_light();
+    }
+    // relay
+    else if (!strcmp(id, "power_switch"))
+    {
+        val->b = relay_get_switch();
+    }
+    // ele sensor
+    else if (!strcmp(id, "voltage"))
+    {
+        val->f = hlw8032_get_voltage();
+    }
+    else if (!strcmp(id, "current"))
+    {
+        val->f = hlw8032_get_current();
+    }
+    else if (!strcmp(id, "active_power"))
+    {
+        val->f = hlw8032_get_active_power();
+    }
+    else if (!strcmp(id, "apparent_power"))
+    {
+        val->f = hlw8032_get_apparent_power();
+    }
+    else if (!strcmp(id, "power_factor"))
+    {
+        val->f = hlw8032_get_power_factor();
+    }
+    else if (!strcmp(id, "Electricity_consumption"))
+    {
+        val->f = hlw8032_get_Electricity_consumption();
     }
     /*
     todo:
@@ -144,8 +189,15 @@ static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
 /* Callback to handle commands received from the QCloud cloud */
 static esp_err_t cloud_set_param(const char *id, const esp_qcloud_param_val_t *val)
 {
-    // esp_err_t err = ESP_FAIL;
-    // ESP_LOGI("cloud", "Received id: %s, val: %d", id, val->i);
+    esp_err_t err = ESP_FAIL;
+    ESP_LOGI("cloud", "Received id: %s, val: %d", id, val->i);
+
+    if (!strcmp(id, "power_switch"))
+    {
+        err = relay_set_switch(val->b);
+    }
+
+    //     err = lightbulb_set_switch(val->b);
 
     // if (!strcmp(id, "power_switch")) {
     //     err = lightbulb_set_switch(val->b);
@@ -161,7 +213,7 @@ static esp_err_t cloud_set_param(const char *id, const esp_qcloud_param_val_t *v
 
     // /* Report driver changes to the cloud side */
     // esp_qcloud_iothub_report_all_property();
-    // return err;
+    return err;
 
     return ESP_OK;
 }
