@@ -84,8 +84,8 @@ void Task_sensor(void *pvParameters)
                 struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
                 struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
 
-                tempValueFloat = (float)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
-                tempValueFloat_ = (float)(struct_shtc3_data.row_temperature) * 175.0 / 65536.0 - 45.0;
+                tempValueFloat[cnt] = (float)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
+                tempValueFloat_[cnt] = (float)(struct_shtc3_data.row_temperature) * 175.0 / 65536.0 - 45.0;
 
                 VaildCnt++;
             }
