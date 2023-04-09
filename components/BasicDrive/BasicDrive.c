@@ -3,6 +3,8 @@
 
 static uint8_t led_strip_pixels[RMT_LED_NUMBERS * 3];
 bool RelayState = 0;
+bool RelayStatusRefreshFlag = false;
+
 /*
  * @description: polling
  * @param {void} *pvParameters
@@ -64,10 +66,11 @@ void Task_key(void *pvParameters)
                     {
                         Relay_ledc_set_duty(0);
                     }
+                    RelayStatusRefreshFlag = true;
                 }
                 else if (KeyValue == 2)
                 {
-                    // wifi config
+                    // reset device
                 }
                 KeyValue = 0;
             }
