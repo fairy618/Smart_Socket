@@ -2,7 +2,7 @@
 #include "BH1750.h"
 
 Sensor_data_t Sensor_data;
-
+bool EnvSensorDataRefreshFlag = false;
 /*
  * @description:
  * @param {void} *pvParameters
@@ -97,6 +97,7 @@ void Task_sensor(void *pvParameters)
         Sensor_data.EnvironmentTemperature = sum_temp_ / VaildCnt;
         ESP_LOGI("SENSOR", " EnvironmentTemperature is %.2f℃, EnvHumidity is %.2f%%. ", Sensor_data.EnvironmentTemperature, Sensor_data.EnvHumidity);
         Sensor_data.flag = 1;
+        EnvSensorDataRefreshFlag = true;
 
         if (HighWaterMark)
         {
