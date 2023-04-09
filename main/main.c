@@ -4,18 +4,9 @@
 #include "BasicDrive.h"
 #include "cloud.h"
 
-QueueHandle_t MailBox = NULL;
-
 void app_main(void)
 {
     int LedTaskBlinkTime = 1000;
-
-    MailBox = xQueueCreate(1, sizeof(UserData_t));
-    if (MailBox == NULL)
-    {
-        ESP_LOGE("QUEUE", "Can not creat queue!");
-        esp_restart();
-    }
 
     xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
@@ -23,11 +14,13 @@ void app_main(void)
 
     xTaskCreate(Task_Hlw8032, "Task_Hlw8032", 2048 * 2, NULL, 2, NULL);
 
-    xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
+    // xTaskCreate(Task_Relay, "Task_Relay", 2048, NULL, 1, NULL);
 
-    xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
+    // xTaskCreate(Task_WS2812, "Task_WS2812", 2048, NULL, 3, NULL);
 
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 1, NULL);
+
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
 
     xTaskCreate(Task_Cloud, "Task_Cloud", 2048 * 2, NULL, 6, NULL);
 
