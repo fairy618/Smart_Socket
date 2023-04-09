@@ -4,20 +4,18 @@
 #include "BasicDrive.h"
 #include "cloud.h"
 
-_Noreturn void app_main(void)
+QueueHandle_t MailBox = NULL;
+
+void app_main(void)
 {
     int LedTaskBlinkTime = 1000;
 
-    // xQueueRelay_g = xQueueCreate(5, sizeof(bool));
-    // xQueueRgb_g = xQueueCreate(5, sizeof(rgb_data_t));
-    // xQueueSensor_g = xQueueCreate(5, sizeof(Sensor_data_t));
-    // xQueueElectric_g = xQueueCreate(5, sizeof(ElectricalParameter_t));
-
-    //  if ((xQueueElectric_g == NULL) || (xQueueRelay_g == NULL) || (xQueueRgb_g == NULL) || (xQueueSensor_g == NULL))
-    //  {
-    //      ESP_LOGE("QUEUE", "Can not creat queue!");
-    //      esp_restart();
-    //  }
+    MailBox = xQueueCreate(1, sizeof(UserData_t));
+    if (MailBox == NULL)
+    {
+        ESP_LOGE("QUEUE", "Can not creat queue!");
+        esp_restart();
+    }
 
     xTaskCreate(Task_LED, "Task_LED", 2048, (void *)&LedTaskBlinkTime, 1, NULL);
 
