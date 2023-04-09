@@ -20,8 +20,6 @@ void app_main(void)
 
     xTaskCreate(Task_key, "Task_key", 2048, NULL, 1, NULL);
 
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
-
     xTaskCreate(Task_Cloud, "Task_Cloud", 2048 * 2, NULL, 6, NULL);
 
     while (1)
