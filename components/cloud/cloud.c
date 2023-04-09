@@ -94,6 +94,22 @@ void Task_Cloud(void *pvParameters)
 
     while (1)
     {
+        if (EnvSensorDataRefreshFlag)
+        {
+            EnvSensorDataRefreshFlag = false;
+            esp_qcloud_iothub_report_all_property();
+        }
+        if (EleSensorDataRefreshFlag)
+        {
+            EleSensorDataRefreshFlag = false;
+            esp_qcloud_iothub_report_all_property();
+        }
+        if (RelayStatusRefreshFlag)
+        {
+            RelayStatusRefreshFlag = false;
+            esp_qcloud_iothub_report_all_property();
+        }
+
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
@@ -212,10 +228,8 @@ static esp_err_t cloud_set_param(const char *id, const esp_qcloud_param_val_t *v
     // }
 
     // /* Report driver changes to the cloud side */
-    // esp_qcloud_iothub_report_all_property();
+    esp_qcloud_iothub_report_all_property();
     return err;
-
-    return ESP_OK;
 }
 
 /* Event handler for catching QCloud events */
@@ -263,11 +277,6 @@ static esp_err_t get_wifi_config(wifi_config_t *wifi_cfg, uint32_t wait_ms)
 
     if (esp_qcloud_storage_get("wifi_config", wifi_cfg, sizeof(wifi_config_t)) == ESP_OK)
     {
-
-#ifdef CONFIG_LIGHT_PROVISIONING_BLECONFIG
-        esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
-#endif
-
         return ESP_OK;
     }
 
@@ -275,43 +284,17 @@ static esp_err_t get_wifi_config(wifi_config_t *wifi_cfg, uint32_t wait_ms)
     esp_wifi_restore();
     esp_wifi_start();
 
-    /**< The yellow light flashes to indicate that the device enters the state of configuring the network */
-    // example_provisioning_indicate_start();
-
     /**< Note: Smartconfig and softapconfig working at the same time will affect the configure network performance */
-
-#ifdef CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG
-    char softap_ssid[32 + 1] = CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG_SSID;
-    esp_qcloud_prov_softapconfig_start(SOFTAPCONFIG_TYPE_ESPRESSIF_TENCENT,
-                                       softap_ssid,
-                                       NULL);
-#endif
-
-#ifdef CONFIG_LIGHT_PROVISIONING_SMARTCONFIG
-    esp_qcloud_prov_smartconfig_start(SC_TYPE_ESPTOUCH_AIRKISS);
-#endif
-
-#ifdef CONFIG_LIGHT_PROVISIONING_BLECONFIG
-    char local_name[32 + 1] = CONFIG_LIGHT_PROVISIONING_BLECONFIG_NAME;
-    esp_qcloud_prov_bleconfig_start(BLECONFIG_TYPE_ESPRESSIF_TENCENT, local_name);
-#endif
+    char softap_ssid[32 + 1] = SOFTAPCONFIG_SSID;
+    esp_qcloud_prov_softapconfig_start(SOFTAPCONFIG_TYPE_ESPRESSIF_TENCENT, softap_ssid, NULL);
 
     esp_qcloud_prov_print_wechat_qr();
     ESP_ERROR_CHECK(esp_qcloud_prov_wait(wifi_cfg, wait_ms));
 
-#ifdef CONFIG_LIGHT_PROVISIONING_SMARTCONFIG
-    esp_qcloud_prov_smartconfig_stop();
-#endif
-
-#ifdef CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG
     esp_qcloud_prov_softapconfig_stop();
-#endif
 
     /**< Store the configure of the device */
     esp_qcloud_storage_set("wifi_config", wifi_cfg, sizeof(wifi_config_t));
-
-    /**< Configure the network successfully to stop the light flashing */
-    // example_provisioning_indicate_stop();
 
     return ESP_OK;
 }
