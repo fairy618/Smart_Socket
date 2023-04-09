@@ -45,10 +45,13 @@ typedef struct
 
 void Task_key(void *pvParameters);
 void Task_LED(void *pvParameters);
-void Task_Relay(void *pvParameters);
+// void Task_Relay(void *pvParameters);
 void Task_WS2812(void *pvParameters);
 void Relay_ledc_init(void);
 void Relay_ledc_set_duty(uint8_t duty);
 void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b);
+
+bool relay_get_switch(void);
+esp_err_t relay_set_switch(bool status);
 
 #endif /*_DRIVER_BASICDRIVE_H_*/
