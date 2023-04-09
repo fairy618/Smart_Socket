@@ -58,8 +58,14 @@ typedef struct
     float PowerFactor;
     uint64_t PF_value;
     float ElectricityConsumption;
+    bool flag;
 } ElectricalParameter_t;
 
 void Task_Hlw8032(void *pvParameters);
-
+float hlw8032_get_voltage(void);
+float hlw8032_get_current(void);
+float hlw8032_get_active_power(void);
+float hlw8032_get_apparent_power(void);
+float hlw8032_get_power_factor(void);
+float hlw8032_get_Electricity_consumption(void);
 #endif /*_DRIVER_HLW8032_H_*/

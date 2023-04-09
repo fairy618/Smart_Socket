@@ -1,6 +1,7 @@
 #include "HLW032.h"
 
 QueueHandle_t xQueue_HLW8032 = NULL;
+ElectricalParameter_t ElectricalParameter;
 
 static esp_err_t hlw8032_data_processing(HLW8032_data_t *hlw8032_row_data_, ElectricalParameter_t *ElectricalParameter,
                                          uint8_t row_data[], int DataLen);
@@ -19,14 +20,13 @@ static void hlw8032_init(void);
 void Task_Hlw8032(void *pvParameters)
 {
     HLW8032_data_t hlw8032_row_data;
-    ElectricalParameter_t ElectricalParameter;
     uart_event_t Event_uart1;
 
     size_t buffered_size;
     uint8_t *hlw8032_uart_data = (uint8_t *)malloc(UART_BUF_SIZE);
 
     bool HighWaterMark = 1;
-    static int UartRecCnt = 0;
+    static int UartRecCnt = 10;
 
     hlw8032_init();
 
@@ -35,23 +35,14 @@ void Task_Hlw8032(void *pvParameters)
         if (xQueueReceive(xQueue_HLW8032, (void *)&Event_uart1, (TickType_t)portMAX_DELAY) == pdPASS)
         {
             UartRecCnt++;
-            if (UartRecCnt % 200 == 0)
+            if (UartRecCnt % 10 == 0)
             {
                 switch (Event_uart1.type)
                 {
                 case UART_DATA:
                     ESP_LOGI("UART1 EVENT", "uart data: %d. ", Event_uart1.size);
-                    int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1),
-                                              20 / portTICK_PERIOD_MS);
+                    int len = uart_read_bytes(HLW8032_UART_PORT_NUM, hlw8032_uart_data, (UART_BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
                     hlw8032_data_processing(&hlw8032_row_data, &ElectricalParameter, hlw8032_uart_data, len);
-                    // if (xQueueSend(xQueueElectric_g, (void *)&ElectricalParameter, 0) == pdPASS)
-                    // {
-                    //     ESP_LOGI("HLW8032", " --- Send ElectricalParameter to xQueue done! --- ");
-                    // }
-                    // else
-                    // {
-                    //     ESP_LOGE("HLW8032", " --- Send ElectricalParameter to xQueue fail! --- ");
-                    // }
                     ESP_LOGI("UART_DATA", "len = %d. ", len);
                     break;
                 case UART_BREAK:
@@ -217,29 +208,21 @@ static esp_err_t hlw8032_data_processing(HLW8032_data_t *hlw8032_row_data_, Elec
                     hlw8032_row_data_->DataUpdata = row_data[20];
                     if (GET_BIT(hlw8032_row_data_->DataUpdata, 4)) // Power refresh
                     {
-                        ElectricalParameter->ActivePower =
-                            hlw8032_row_data_->PowerParameter * HLW8032_VOLTAGE_COEF * HLW8032_CURRENT_COFE /
-                            hlw8032_row_data_->Power;
-                        ElectricalParameter->ApparentPower =
-                            ElectricalParameter->VoltageRMS * ElectricalParameter->CurrentRMS;
-                        ElectricalParameter->PowerFactor =
-                            ElectricalParameter->ActivePower / ElectricalParameter->ApparentPower;
+                        ElectricalParameter->ActivePower = hlw8032_row_data_->PowerParameter * HLW8032_VOLTAGE_COEF * HLW8032_CURRENT_COFE / hlw8032_row_data_->Power;
+                        ElectricalParameter->ApparentPower = ElectricalParameter->VoltageRMS * ElectricalParameter->CurrentRMS;
+                        ElectricalParameter->PowerFactor = ElectricalParameter->ActivePower / ElectricalParameter->ApparentPower;
                         ESP_LOGI("HLW8023 ELEPAR", "Active Power is %f. ", ElectricalParameter->ActivePower);
                         ESP_LOGI("HLW8023 ELEPAR", "Apparent Power is %f. ", ElectricalParameter->ApparentPower);
                         ESP_LOGI("HLW8023 ELEPAR", "Power Factor is %f. ", ElectricalParameter->PowerFactor);
                     }
                     if (GET_BIT(hlw8032_row_data_->DataUpdata, 5)) // Current refresh
                     {
-                        ElectricalParameter->CurrentRMS =
-                            hlw8032_row_data_->CurrentParameter * HLW8032_CURRENT_COFE /
-                            hlw8032_row_data_->Current;
+                        ElectricalParameter->CurrentRMS = hlw8032_row_data_->CurrentParameter * HLW8032_CURRENT_COFE / hlw8032_row_data_->Current;
                         ESP_LOGI("HLW8023 ELEPAR", "Current RMS is %f. ", ElectricalParameter->CurrentRMS);
                     }
                     if (GET_BIT(hlw8032_row_data_->DataUpdata, 6)) // Voltage refresh
                     {
-                        ElectricalParameter->VoltageRMS =
-                            hlw8032_row_data_->VoltageParameter * HLW8032_VOLTAGE_COEF /
-                            hlw8032_row_data_->Voltage;
+                        ElectricalParameter->VoltageRMS = hlw8032_row_data_->VoltageParameter * HLW8032_VOLTAGE_COEF / hlw8032_row_data_->Voltage;
                         ESP_LOGI("HLW8023 ELEPAR", "Voltage RMS is %f. ", ElectricalParameter->VoltageRMS);
                     }
 
@@ -250,15 +233,11 @@ static esp_err_t hlw8032_data_processing(HLW8032_data_t *hlw8032_row_data_, Elec
                     {
                         PF_overflow_old = PF_overflow_now;
                         hlw8032_row_data_->PF_reverse_cnt++;
-                        ElectricalParameter->PF_value =
-                            hlw8032_row_data_->PF_reverse_cnt * 65536 + hlw8032_row_data_->PF_reg_value;
-                        ElectricalParameter->ElectricityConsumption =
-                            ElectricalParameter->PF_value * HLW8032_VOLTAGE_COEF * HLW8032_CURRENT_COFE *
-                            hlw8032_row_data_->PowerParameter / (36 * 10 ^ 11);
+                        ElectricalParameter->PF_value = hlw8032_row_data_->PF_reverse_cnt * 65536 + hlw8032_row_data_->PF_reg_value;
+                        ElectricalParameter->ElectricityConsumption = ElectricalParameter->PF_value * HLW8032_VOLTAGE_COEF * HLW8032_CURRENT_COFE * hlw8032_row_data_->PowerParameter / (36 * 10 ^ 11);
                         ESP_LOGI("PF REG OVERFLOW", "Overflow times : %d. ", hlw8032_row_data_->PF_reverse_cnt);
                         ESP_LOGI("PF REG OVERFLOW", "PF value : %llu. ", ElectricalParameter->PF_value);
-                        ESP_LOGI("PF REG OVERFLOW", "Electricity Consumption : %f. ",
-                                 ElectricalParameter->ElectricityConsumption);
+                        ESP_LOGI("PF REG OVERFLOW", "Electricity Consumption : %f. ", ElectricalParameter->ElectricityConsumption);
                     }
 
                     break;
@@ -294,6 +273,16 @@ static esp_err_t hlw8032_data_processing(HLW8032_data_t *hlw8032_row_data_, Elec
             }
         }
     }
+
+    ElectricalParameter->ActivePower = 10086;
+    ElectricalParameter->ApparentPower = 86;
+    ElectricalParameter->CurrentRMS = 6;
+    ElectricalParameter->ElectricityConsumption = 13;
+    ElectricalParameter->PF_value = 1008611;
+    ElectricalParameter->PowerFactor = 0.9;
+    ElectricalParameter->VoltageRMS = 223;
+
+    ElectricalParameter->flag = 1;
 
     return ret;
 }
@@ -358,4 +347,71 @@ static uint8_t hlw8032_lowbytes_checksum(uint8_t data[], uint8_t length)
 static uint32_t hlw8032_uint8_2_uint32(uint8_t HighByte, uint8_t MidByte, uint8_t LowByte)
 {
     return (HighByte << 16) | (MidByte << 8) | (LowByte);
+}
+
+float hlw8032_get_voltage(void)
+{
+    if (ElectricalParameter.flag)
+    {
+        return (ElectricalParameter.VoltageRMS);
+    }
+    else
+    {
+        return 0;
+    }
+}
+float hlw8032_get_current(void)
+{
+    if (ElectricalParameter.flag)
+    {
+        return (ElectricalParameter.CurrentRMS);
+    }
+    else
+    {
+        return 0;
+    }
+}
+float hlw8032_get_active_power(void)
+{
+    if (ElectricalParameter.flag)
+    {
+        return (ElectricalParameter.ActivePower);
+    }
+    else
+    {
+        return 0;
+    }
+}
+float hlw8032_get_apparent_power(void)
+{
+    if (ElectricalParameter.flag)
+    {
+        return (ElectricalParameter.ApparentPower);
+    }
+    else
+    {
+        return 0;
+    }
+}
+float hlw8032_get_power_factor(void)
+{
+    if (ElectricalParameter.flag)
+    {
+        return (ElectricalParameter.PowerFactor);
+    }
+    else
+    {
+        return 0;
+    }
+}
+float hlw8032_get_Electricity_consumption(void)
+{
+    if (ElectricalParameter.flag)
+    {
+        return (ElectricalParameter.ElectricityConsumption);
+    }
+    else
+    {
+        return 0;
+    }
 }
