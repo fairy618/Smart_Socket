@@ -2,6 +2,7 @@
 #define _DRIVER_SHTC3_H_
 
 #include <stdio.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -14,7 +15,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
-#define SENSOR_INTERVAL_TIME_MS 1000 * 30
+#define SENSOR_INTERVAL_TIME_MS 1000 * 60
 
 #define I2C_MASTER_SCL_PIN 7        /*!< GPIO number used for I2C master clock */
 #define I2C_MASTER_SDA_PIN 6        /*!< GPIO number used for I2C master data  */
@@ -65,5 +66,7 @@ esp_err_t shtc3_sleep(void);
 esp_err_t shtc3_wakeup(void);
 esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf);
 esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsigned char CheckSum);
+float arrray_ave_float(float array[], int array_size);
+int arrray_ave_int(int array[], int array_size);
 
 #endif /*_DRIVER_SHTC3_H_*/
