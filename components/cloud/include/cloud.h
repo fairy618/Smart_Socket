@@ -17,10 +17,13 @@
 #include "esp_qcloud_iothub.h"
 #include "esp_qcloud_prov.h"
 
-#define CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG 1
-#define CONFIG_LIGHT_PROVISIONING_SOFTAPCONFIG_SSID "SmartSocket_v230407"
+#define SOFTAPCONFIG_SSID "Fairy_SmartSocker"
 
 #define REBOOT_UNBROKEN_COUNT_RESET 5
+
+extern bool EnvSensorDataRefreshFlag;
+extern bool EleSensorDataRefreshFlag;
+extern bool RelayStatusRefreshFlag;
 
 void Task_Cloud(void *pvParameters);
 
