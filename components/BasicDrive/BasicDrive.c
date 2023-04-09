@@ -2,7 +2,7 @@
 #include "BasicDrive.h"
 
 static uint8_t led_strip_pixels[RMT_LED_NUMBERS * 3];
-
+bool RelayState = 0;
 /*
  * @description: polling
  * @param {void} *pvParameters
@@ -13,7 +13,9 @@ void Task_key(void *pvParameters)
     // QueueHandle_t xQueueRelay = (QueueHandle_t)pvParameters;
     static uint8_t LongPressCnt = 0;
     uint8_t KeyValue = 0;
-    bool RelayState = 0;
+
+    Relay_ledc_init();
+    Relay_ledc_set_duty(0);
 
     gpio_reset_pin(GPIO_NUM_KEY);
     gpio_set_direction(GPIO_NUM_KEY, GPIO_MODE_INPUT);
@@ -54,6 +56,14 @@ void Task_key(void *pvParameters)
                 if (KeyValue == 1)
                 {
                     RelayState = !RelayState;
+                    if (RelayState)
+                    {
+                        Relay_ledc_set_duty(80);
+                    }
+                    else
+                    {
+                        Relay_ledc_set_duty(0);
+                    }
                 }
                 else if (KeyValue == 2)
                 {
@@ -65,40 +75,36 @@ void Task_key(void *pvParameters)
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
-/*
- * @description:
- * @param {void} *pvParameters
- * @return {*}
- */
-void Task_Relay(void *pvParameters)
-{
-    bool HighWaterMark = 1;
-    bool RelayState = 0;
+// /*
+//  * @description:
+//  * @param {void} *pvParameters
+//  * @return {*}
+//  */
+// void Task_Relay(void *pvParameters)
+// {
+//     bool HighWaterMark = 1;
 
-    Relay_ledc_init();
-    Relay_ledc_set_duty(0);
+//     Relay_ledc_init();
+//     Relay_ledc_set_duty(0);
 
-    while (1)
-    {
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
-        RelayState = !RelayState;
+//     while (1)
+//     {
+//         if (RelayState)
+//         {
+//             Relay_ledc_set_duty(80);
+//         }
+//         else
+//         {
+//             Relay_ledc_set_duty(0);
+//         }
 
-        if (RelayState)
-        {
-            Relay_ledc_set_duty(80);
-        }
-        else
-        {
-            Relay_ledc_set_duty(0);
-        }
-
-        if (HighWaterMark)
-        {
-            HighWaterMark = 0;
-            ESP_LOGI("RELAY HighWaterMark", "Stack`s free depth : %d/2048. ", uxTaskGetStackHighWaterMark(NULL));
-        }
-    }
-}
+//         if (HighWaterMark)
+//         {
+//             HighWaterMark = 0;
+//             ESP_LOGI("RELAY HighWaterMark", "Stack`s free depth : %d/2048. ", uxTaskGetStackHighWaterMark(NULL));
+//         }
+//     }
+// }
 
 /*
  * @description: blink
@@ -307,4 +313,23 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
         *b = rgb_max - rgb_adj;
         break;
     }
+}
+
+bool relay_get_switch(void)
+{
+    return RelayState;
+}
+
+esp_err_t relay_set_switch(bool status)
+{
+    RelayState = status;
+    if (RelayState)
+    {
+        Relay_ledc_set_duty(80);
+    }
+    else
+    {
+        Relay_ledc_set_duty(0);
+    }
+    return ESP_OK;
 }
