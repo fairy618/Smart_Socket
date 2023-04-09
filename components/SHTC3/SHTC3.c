@@ -15,9 +15,10 @@ void Task_sensor(void *pvParameters)
     temperature_sensor_config_t temp_sensor_config = {-10, 80, TEMPERATURE_SENSOR_CLK_SRC_DEFAULT};
     bool HighWaterMark = 1;
 
-    int tempValueInt[10];
     float tempValueFloat[10];
     float tempValueFloat_[10];
+
+    UserData_t EnvData2Send;
 
     i2c_master_init();
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -48,27 +49,22 @@ void Task_sensor(void *pvParameters)
 
     while (1)
     {
-        vTaskDelay(SENSOR_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
 
         // chip temp
-        memset(tempValueFloat, 0, sizeof(tempValueFloat));
-        for (uint8_t cnt = 0; cnt < 10; cnt++)
-        {
-            temperature_sensor_get_celsius(temp_sensor, &tempValueFloat[cnt]);
-            vTaskDelay(5 / portTICK_PERIOD_MS);
-        }
-        Sensor_data.ChipTemperature = arrray_ave_float(tempValueFloat, sizeof(tempValueFloat));
+        temperature_sensor_get_celsius(temp_sensor, &Sensor_data.ChipTemperature);
         ESP_LOGI("SENSOR", " ChipTemperature is %.2f℃. ", Sensor_data.ChipTemperature);
 
         // env light intensity
-        memset(tempValueInt, 0, sizeof(tempValueInt));
+        int LightSum = 0;
+        int LightTemp;
         for (uint8_t cnt = 0; cnt < 10; cnt++)
         {
-            bh1750_read_data(&tempValueInt[cnt]);
+            bh1750_read_data(&LightTemp);
+            LightSum += LightTemp;
             vTaskDelay(150 / portTICK_PERIOD_MS);
         }
-        Sensor_data.LightIntensity = arrray_ave_int(tempValueInt, sizeof(tempValueInt));
-        ESP_LOGI("SENSOR", " LightIntensity is %d lm. ", Sensor_data.LightIntensity);
+        Sensor_data.LightIntensity = LightSum / 10;
+        ESP_LOGI("SENSOR", " LightIntensity is %d lx. ", Sensor_data.LightIntensity);
 
         // env temp&RH
         memset(tempValueFloat, 0, sizeof(tempValueFloat));
@@ -101,19 +97,28 @@ void Task_sensor(void *pvParameters)
         Sensor_data.EnvironmentTemperature = sum_temp_ / VaildCnt;
         ESP_LOGI("SENSOR", " EnvironmentTemperature is %.2f℃, EnvHumidity is %.2f%%. ", Sensor_data.EnvironmentTemperature, Sensor_data.EnvHumidity);
 
-        // if (xQueueSend(xQueueSensor_g, (void *) &Sensor_data, 0) == pdPASS)
-        // {
-        //     ESP_LOGD("SENSOR", " --- Send Sensor_data to xQueue done! --- ");
-        // } else
-        // {
-        //     ESP_LOGD("SENSOR", " --- Send Sensor_data to xQueue fail! --- ");
-        // }
+        EnvData2Send.EnvData.ChipTemperature = Sensor_data.ChipTemperature;
+        EnvData2Send.EnvData.EnvironmentTemperature = Sensor_data.EnvironmentTemperature;
+        EnvData2Send.EnvData.EnvHumidity = Sensor_data.EnvHumidity;
+        EnvData2Send.EnvData.LightIntensity = Sensor_data.LightIntensity;
+        EnvData2Send.EnvDataFlag = 1;
+
+        if (xQueueSend(MailBox, (void *)&EnvData2Send, portMAX_DELAY) == pdPASS)
+        {
+            ESP_LOGI("SENSOR", " --- Send EnvData2Send to MailBox done! --- ");
+        }
+        else
+        {
+            ESP_LOGE("SENSOR", " --- Send EnvData2Send to MailBox fail! --- ");
+        }
 
         if (HighWaterMark)
         {
             HighWaterMark = 0;
             ESP_LOGI("SHTC3 HighWaterMark", "Stack`s free depth : %d/2048. ", uxTaskGetStackHighWaterMark(NULL));
         }
+
+        vTaskDelay(SENSOR_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
     }
 }
 
@@ -251,66 +256,4 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
     }
 
     return err;
-}
-
-float arrray_ave_float(float array[], int array_size)
-{
-    float sum = 0;
-    unsigned char i, j;
-
-    for (i = 0; i < array_size - 1; ++i)
-    {
-        bool flag = 1;
-        for (j = 0; j < array_size - i - 1; ++j)
-        {
-            if (array[j] > array[j + 1])
-            {
-                float t = array[i];
-                array[i] = array[i + 1];
-                array[i + 1] = t;
-                flag = 0;
-            }
-        }
-        if (flag)
-        {
-            break;
-        }
-    }
-
-    for (i = 2; i < array_size - 2; i++)
-    {
-        sum += array[i];
-    }
-    return (sum / (array_size - 4));
-}
-
-int arrray_ave_int(int array[], int array_size)
-{
-    int sum = 0;
-    unsigned char i, j;
-
-    for (i = 0; i < array_size - 1; ++i)
-    {
-        bool flag = 1;
-        for (j = 0; j < array_size - i - 1; ++j)
-        {
-            if (array[j] > array[j + 1])
-            {
-                int t = array[i];
-                array[i] = array[i + 1];
-                array[i + 1] = t;
-                flag = 0;
-            }
-        }
-        if (flag)
-        {
-            break;
-        }
-    }
-
-    for (i = 2; i < array_size - 2; i++)
-    {
-        sum += array[i];
-    }
-    return (sum / (array_size - 4));
 }
