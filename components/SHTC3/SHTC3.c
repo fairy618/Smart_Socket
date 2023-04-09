@@ -15,6 +15,10 @@ void Task_sensor(void *pvParameters)
     temperature_sensor_config_t temp_sensor_config = {-10, 80, TEMPERATURE_SENSOR_CLK_SRC_DEFAULT};
     bool HighWaterMark = 1;
 
+    int tempValueInt[10];
+    float tempValueFloat[10];
+    float tempValueFloat_[10];
+
     i2c_master_init();
     vTaskDelay(10 / portTICK_PERIOD_MS);
 
@@ -47,39 +51,55 @@ void Task_sensor(void *pvParameters)
         vTaskDelay(SENSOR_INTERVAL_TIME_MS / portTICK_PERIOD_MS);
 
         // chip temp
-        temperature_sensor_get_celsius(temp_sensor, &Sensor_data.ChipTemperature);
+        memset(tempValueFloat, 0, sizeof(tempValueFloat));
+        for (uint8_t cnt = 0; cnt < 10; cnt++)
+        {
+            temperature_sensor_get_celsius(temp_sensor, &tempValueFloat[cnt]);
+            vTaskDelay(5 / portTICK_PERIOD_MS);
+        }
+        Sensor_data.ChipTemperature = arrray_ave_float(tempValueFloat, sizeof(tempValueFloat));
         ESP_LOGI("SENSOR", " ChipTemperature is %.2f℃. ", Sensor_data.ChipTemperature);
 
         // env light intensity
-        bh1750_read_data(&Sensor_data.LightIntensity);
+        memset(tempValueInt, 0, sizeof(tempValueInt));
+        for (uint8_t cnt = 0; cnt < 10; cnt++)
+        {
+            bh1750_read_data(&tempValueInt[cnt]);
+            vTaskDelay(150 / portTICK_PERIOD_MS);
+        }
+        Sensor_data.LightIntensity = arrray_ave_int(tempValueInt, sizeof(tempValueInt));
         ESP_LOGI("SENSOR", " LightIntensity is %d lm. ", Sensor_data.LightIntensity);
 
         // env temp&RH
-        shtc3_measure_normal_rh_dis_clocks(struct_shtc3_data.row_data);
-
-        struct_shtc3_data.flag_humidity = shtc3_crc_check(struct_shtc3_data.row_data, 2, struct_shtc3_data.row_data[2]);
-        struct_shtc3_data.flag_temperature = shtc3_crc_check(struct_shtc3_data.row_data + 3 * sizeof(uint8_t), 2,
-                                                             struct_shtc3_data.row_data[5]);
-
-        if (struct_shtc3_data.flag_humidity != ESP_OK || struct_shtc3_data.flag_temperature != ESP_OK)
+        memset(tempValueFloat, 0, sizeof(tempValueFloat));
+        memset(tempValueFloat_, 0, sizeof(tempValueFloat_));
+        unsigned char VaildCnt = 0;
+        for (uint8_t cnt = 0; cnt < 10; cnt++)
         {
-            ESP_LOGE("SHTC3 CRC CHECK", "There are something wrong whit shtc3");
-            continue;
+            shtc3_measure_normal_rh_dis_clocks(struct_shtc3_data.row_data);
+            struct_shtc3_data.flag_humidity = shtc3_crc_check(struct_shtc3_data.row_data, 2, struct_shtc3_data.row_data[2]);
+            struct_shtc3_data.flag_temperature = shtc3_crc_check(struct_shtc3_data.row_data + 3 * sizeof(uint8_t), 2, struct_shtc3_data.row_data[5]);
+            if (struct_shtc3_data.flag_humidity == ESP_OK && struct_shtc3_data.flag_temperature == ESP_OK)
+            {
+                struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
+                struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
+
+                tempValueFloat = (float)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
+                tempValueFloat_ = (float)(struct_shtc3_data.row_temperature) * 175.0 / 65536.0 - 45.0;
+
+                VaildCnt++;
+            }
         }
-        else // Valid crc check
+        float sum_temp = 0;
+        float sum_temp_ = 0;
+        for (uint8_t i = 0; i < VaildCnt; i++)
         {
-            struct_shtc3_data.row_humidity = (struct_shtc3_data.row_data[0] << 8) | struct_shtc3_data.row_data[1];
-            struct_shtc3_data.row_temperature = (struct_shtc3_data.row_data[3] << 8) + struct_shtc3_data.row_data[4];
-
-            struct_shtc3_data.humidity = (float)(struct_shtc3_data.row_humidity * 100.0 / 65536.0);
-            struct_shtc3_data.temperature = (float)(struct_shtc3_data.row_temperature) * 175.0 / 65536.0 - 45.0;
-
-            Sensor_data.EnvHumidity = struct_shtc3_data.humidity;
-            Sensor_data.EnvironmentTemperature = struct_shtc3_data.temperature;
-
-            ESP_LOGI("SENSOR", " EnvironmentTemperature is %.2f℃, EnvHumidity is %.2f%%. ",
-                     Sensor_data.EnvironmentTemperature, Sensor_data.EnvHumidity);
+            sum_temp += tempValueFloat[i];
+            sum_temp_ += tempValueFloat_[i];
         }
+        Sensor_data.EnvHumidity = sum_temp / VaildCnt;
+        Sensor_data.EnvironmentTemperature = sum_temp_ / VaildCnt;
+        ESP_LOGI("SENSOR", " EnvironmentTemperature is %.2f℃, EnvHumidity is %.2f%%. ", Sensor_data.EnvironmentTemperature, Sensor_data.EnvHumidity);
 
         // if (xQueueSend(xQueueSensor_g, (void *) &Sensor_data, 0) == pdPASS)
         // {
@@ -182,8 +202,7 @@ esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf)
     err = shtc3_write_cmd(SHTC3_MEASURE_CMD_2);
 
     // RH first
-    err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6,
-                                      I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    err = i2c_master_read_from_device(I2C_MASTER_NUM, SHTC3_SENSOR_ADDR, read_buf, 6, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 
     err = shtc3_sleep();
 
@@ -232,4 +251,66 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
     }
 
     return err;
+}
+
+float arrray_ave_float(float array[], int array_size)
+{
+    float sum = 0;
+    unsigned char i, j;
+
+    for (i = 0; i < array_size - 1; ++i)
+    {
+        bool flag = 1;
+        for (j = 0; j < array_size - i - 1; ++j)
+        {
+            if (array[j] > array[j + 1])
+            {
+                float t = array[i];
+                array[i] = array[i + 1];
+                array[i + 1] = t;
+                flag = 0;
+            }
+        }
+        if (flag)
+        {
+            break;
+        }
+    }
+
+    for (i = 2; i < array_size - 2; i++)
+    {
+        sum += array[i];
+    }
+    return (sum / (array_size - 4));
+}
+
+int arrray_ave_int(int array[], int array_size)
+{
+    int sum = 0;
+    unsigned char i, j;
+
+    for (i = 0; i < array_size - 1; ++i)
+    {
+        bool flag = 1;
+        for (j = 0; j < array_size - i - 1; ++j)
+        {
+            if (array[j] > array[j + 1])
+            {
+                int t = array[i];
+                array[i] = array[i + 1];
+                array[i + 1] = t;
+                flag = 0;
+            }
+        }
+        if (flag)
+        {
+            break;
+        }
+    }
+
+    for (i = 2; i < array_size - 2; i++)
+    {
+        sum += array[i];
+    }
+    return (sum / (array_size - 4));
 }
