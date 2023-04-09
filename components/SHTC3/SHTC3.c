@@ -1,6 +1,8 @@
 #include "SHTC3.h"
 #include "BH1750.h"
 
+Sensor_data_t Sensor_data;
+
 /*
  * @description:
  * @param {void} *pvParameters
@@ -10,7 +12,6 @@ void Task_sensor(void *pvParameters)
 {
     uint8_t ID_Register[2];
     shtc3_t struct_shtc3_data;
-    Sensor_data_t Sensor_data;
     temperature_sensor_handle_t temp_sensor = NULL;
     temperature_sensor_config_t temp_sensor_config = {-10, 80, TEMPERATURE_SENSOR_CLK_SRC_DEFAULT};
     bool HighWaterMark = 1;
@@ -18,7 +19,7 @@ void Task_sensor(void *pvParameters)
     float tempValueFloat[10];
     float tempValueFloat_[10];
 
-    UserData_t EnvData2Send;
+    Sensor_data.flag = 0;
 
     i2c_master_init();
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -49,7 +50,6 @@ void Task_sensor(void *pvParameters)
 
     while (1)
     {
-
         // chip temp
         temperature_sensor_get_celsius(temp_sensor, &Sensor_data.ChipTemperature);
         ESP_LOGI("SENSOR", " ChipTemperature is %.2f℃. ", Sensor_data.ChipTemperature);
@@ -96,21 +96,7 @@ void Task_sensor(void *pvParameters)
         Sensor_data.EnvHumidity = sum_temp / VaildCnt;
         Sensor_data.EnvironmentTemperature = sum_temp_ / VaildCnt;
         ESP_LOGI("SENSOR", " EnvironmentTemperature is %.2f℃, EnvHumidity is %.2f%%. ", Sensor_data.EnvironmentTemperature, Sensor_data.EnvHumidity);
-
-        EnvData2Send.EnvData.ChipTemperature = Sensor_data.ChipTemperature;
-        EnvData2Send.EnvData.EnvironmentTemperature = Sensor_data.EnvironmentTemperature;
-        EnvData2Send.EnvData.EnvHumidity = Sensor_data.EnvHumidity;
-        EnvData2Send.EnvData.LightIntensity = Sensor_data.LightIntensity;
-        EnvData2Send.EnvDataFlag = 1;
-
-        if (xQueueSend(MailBox, (void *)&EnvData2Send, portMAX_DELAY) == pdPASS)
-        {
-            ESP_LOGI("SENSOR", " --- Send EnvData2Send to MailBox done! --- ");
-        }
-        else
-        {
-            ESP_LOGE("SENSOR", " --- Send EnvData2Send to MailBox fail! --- ");
-        }
+        Sensor_data.flag = 1;
 
         if (HighWaterMark)
         {
@@ -256,4 +242,52 @@ esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsi
     }
 
     return err;
+}
+
+float sensor_get_env_temp(void)
+{
+    if (Sensor_data.flag)
+    {
+        return (Sensor_data.EnvironmentTemperature);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+float sensor_get_chip_temp(void)
+{
+    if (Sensor_data.flag)
+    {
+        return (Sensor_data.ChipTemperature);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+float sensor_get_env_rh(void)
+{
+    if (Sensor_data.flag)
+    {
+        return (Sensor_data.EnvHumidity);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+int sensor_get_env_light(void)
+{
+    if (Sensor_data.flag)
+    {
+        return (Sensor_data.LightIntensity);
+    }
+    else
+    {
+        return 0;
+    }
 }

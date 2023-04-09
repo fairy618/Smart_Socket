@@ -56,13 +56,8 @@ typedef struct
     float EnvHumidity;
     float EnvironmentTemperature;
     int LightIntensity;
+    bool flag;
 } Sensor_data_t;
-
-typedef struct
-{
-    Sensor_data_t EnvData;
-    bool EnvDataFlag;
-} UserData_t;
 
 extern QueueHandle_t MailBox;
 
@@ -76,5 +71,10 @@ esp_err_t shtc3_measure_normal_rh_dis_clocks(uint8_t *read_buf);
 esp_err_t shtc3_crc_check(unsigned char Inputdata[], unsigned char ByteNbr, unsigned char CheckSum);
 float arrray_ave_float(float array[], int array_size);
 int arrray_ave_int(int array[], int array_size);
+
+float sensor_get_env_temp(void);
+float sensor_get_chip_temp(void);
+float sensor_get_env_rh(void);
+int sensor_get_env_light(void);
 
 #endif /*_DRIVER_SHTC3_H_*/
