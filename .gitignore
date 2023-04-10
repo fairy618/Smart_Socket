@@ -60,3 +60,4 @@ main.json
 sdkconfig
 /cmake-build-debug-esp32/**
 /.idea
+components/cloud/include/cloud_key.h
