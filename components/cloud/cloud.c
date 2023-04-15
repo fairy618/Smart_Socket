@@ -64,6 +64,7 @@ void Task_Cloud(void *pvParameters)
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_factor", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("Electricity_consumption", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("debugIfo", QCLOUD_VAL_TYPE_STRING));
+
     /**< The processing function of the communication between the device and the server */
     // ESP_ERROR_CHECK(esp_qcloud_device_add_property_cb(light_get_param, light_set_param));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property_cb(cloud_get_param, cloud_set_param));
@@ -118,20 +119,6 @@ void Task_Cloud(void *pvParameters)
 /* Callback to handle commands received from the QCloud cloud */
 static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
 {
-
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_switch", QCLOUD_VAL_TYPE_BOOLEAN));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("TimeCountDown", QCLOUD_VAL_TYPE_BOOLEAN));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("voltage", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("current", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("EnvRH", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("EnvTemp", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("ChipTemp", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("Light", QCLOUD_VAL_TYPE_INTEGER));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("active_power", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("reactive_power", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_factor", QCLOUD_VAL_TYPE_FLOAT));
-    // ESP_ERROR_CHECK(esp_qcloud_device_add_property("Electricity_consumption", QCLOUD_VAL_TYPE_FLOAT));
-
     // env sensor
     if (!strcmp(id, "EnvTemp"))
     {
