@@ -132,121 +132,171 @@ void Task_Hlw8032(void *pvParameters)
  */
 static esp_err_t hlw8032_data_processing(uint8_t row_data[], int DataLen)
 {
-    esp_err_t ret = ESP_OK;
+    static esp_err_t ret = ESP_OK;
     static uint8_t index = 0;
+    static uint8_t errorflag = false;
 
-    // Check data length
-    if (DataLen != HLW8032_UART_DATA_LEN)
+    if (RelayState)
     {
-        ESP_LOGE("HLW8032 DATA", "The length of data is %d. It should be 24!", DataLen);
-        ret = ESP_FAIL;
-    }
-    else
-    {
-        // The data length meets expectations
-        // Then check the "check REG"
-        hlw8032_row_data.Check = row_data[1];
-        if (hlw8032_row_data.Check != 0x5A)
+        // Check data length
+        if (DataLen != HLW8032_UART_DATA_LEN)
         {
-            ESP_LOGE("HLW8032 DATA", "The value of Check REG  is %#X, it should be 0x5A. ", hlw8032_row_data.Check);
+            ESP_LOGE("HLW8032 DATA", "The length of data is %d. It should be 24!", DataLen);
             ret = ESP_FAIL;
         }
         else
         {
             // The data length meets expectations
-            // The "check REG" is also as expected
-            // Then check the data checksum
-            uint8_t CheckSum = hlw8032_lowbytes_checksum(row_data, DataLen);
-            hlw8032_row_data.CheckSum = row_data[23];
-            if (hlw8032_row_data.CheckSum != CheckSum)
+            // Then check the "check REG"
+            hlw8032_row_data.Check = row_data[1];
+            if (hlw8032_row_data.Check != 0x5A)
             {
-                ESP_LOGE("HLW8032 DATA", "The checksum is %#X, but the value of checksum REG  is %#X. ", CheckSum, hlw8032_row_data.CheckSum);
+                ESP_LOGE("HLW8032 DATA", "The value of Check REG  is %#X, it should be 0x5A. ", hlw8032_row_data.Check);
                 ret = ESP_FAIL;
             }
             else
             {
                 // The data length meets expectations
                 // The "check REG" is also as expected
-                // Data validity
-                // Calculate the electric energy data according to "State REG"
-
-                // ESP_LOGI("UART_DATA", "here 001 ");
-                // for (uint8_t cnt = 0; cnt < 24; cnt++)
-                // {
-                //     ESP_LOGI("row_data", "row_data [%d] = %X", cnt, row_data[cnt]);
-                // }
-                // ESP_LOGI("UART_DATA", "here 002 ");
-
-                hlw8032_row_data.State = row_data[0];
-                switch (hlw8032_row_data.State)
+                // Then check the data checksum
+                uint8_t CheckSum = hlw8032_lowbytes_checksum(row_data, DataLen);
+                hlw8032_row_data.CheckSum = row_data[23];
+                if (hlw8032_row_data.CheckSum != CheckSum)
                 {
-                case 0xAA:
-                    ESP_LOGE("HLW8032 DATA", " The value of State REG is %#X. The chip is error.", hlw8032_row_data.State);
+                    ESP_LOGE("HLW8032 DATA", "The checksum is %#X, but the value of checksum REG  is %#X. ", CheckSum, hlw8032_row_data.CheckSum);
                     ret = ESP_FAIL;
-                    break;
+                }
+                else
+                {
+                    // The data length meets expectations
+                    // The "check REG" is also as expected
+                    // Data validity
+                    // Calculate the electric energy data according to "State REG"
 
-                case 0x55:
-                    ESP_LOGI("HLW8032 DATA", " The value of State REG is %#X. The chip is fine and no overflow.", hlw8032_row_data.State);
+                    // ESP_LOGI("UART_DATA", "here 001 ");
+                    // for (uint8_t cnt = 0; cnt < 24; cnt++)
+                    // {
+                    //     ESP_LOGI("row_data", "row_data [%d] = %X", cnt, row_data[cnt]);
+                    // }
+                    // ESP_LOGI("UART_DATA", "here 002 ");
 
-                    index = 5;
-                    hlw8032_row_data.Voltage = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
-
-                    index = 11;
-                    hlw8032_row_data.Current = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
-
-                    index = 17;
-                    hlw8032_row_data.Power = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
-
+                    hlw8032_row_data.State = row_data[0];
                     hlw8032_row_data.DataUpdata = row_data[20];
+                    errorflag = false;
 
-                    // Isolated sampling
-                    ElectricalParameter.VoltageRMS = HLW8032_VOLTAGE_REG_PARAMETER * HLW8032_K1 / hlw8032_row_data.Voltage;
-                    ElectricalParameter.CurrentRMS = HLW8032_CURRENT_REG_PARAMETER * HLW8032_K2 / hlw8032_row_data.Current;
-                    ElectricalParameter.ActivePower = HLW8032_POWER_REG_PARAMETER * HLW8032_K3 / hlw8032_row_data.Power;
-
-                    ElectricalParameter.ApparentPower = ElectricalParameter.VoltageRMS * ElectricalParameter.CurrentRMS;
-                    ElectricalParameter.PowerFactor = ElectricalParameter.ActivePower / ElectricalParameter.ApparentPower;
-
-                    ESP_LOGI("ElectricalParameter", "VoltageRMS    = %.2f. ", ElectricalParameter.VoltageRMS);
-                    ESP_LOGI("ElectricalParameter", "CurrentRMS    = %.2f. ", ElectricalParameter.CurrentRMS);
-                    ESP_LOGI("ElectricalParameter", "ActivePower   = %.2f. ", ElectricalParameter.ActivePower);
-                    ESP_LOGI("ElectricalParameter", "ApparentPower = %.2f. ", ElectricalParameter.ApparentPower);
-                    ESP_LOGI("ElectricalParameter", "PowerFactor   = %.2f. ", ElectricalParameter.PowerFactor);
-                    ESP_LOGI("ElectricalParameter", "PF Counter    = %lu. ", pf_counter_isr);
-
-                    EleSensorDataRefreshFlag = true;
-                    break;
-
-                default:
-                    ESP_LOGI("HLW8023 DATA", "default");
-                    if ((hlw8032_row_data.State & 0xF0) == 0xF0)
+                    switch (hlw8032_row_data.State)
                     {
-                        if (GET_BIT(hlw8032_row_data.State, 3))
+                    case 0xAA:
+                        ESP_LOGE("HLW8032 DATA", " The value of State REG is %#X. The chip is error.", hlw8032_row_data.State);
+                        errorflag = true;
+                        ret = ESP_FAIL;
+                        break;
+
+                    case 0x55:
+                        index = 5;
+                        hlw8032_row_data.Voltage = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                        index = 11;
+                        hlw8032_row_data.Current = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                        index = 17;
+                        hlw8032_row_data.Power = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                        ESP_LOGI("HLW8032 DATA", " The value of State REG is 0x%X. The chip is fine and no overflow.", hlw8032_row_data.State);
+                        break;
+
+                    default:
+                        if ((hlw8032_row_data.State & 0xF0) == 0xF0)
                         {
-                            ESP_LOGE("HLW8023 DATA VOERFLOW", "Voltage REG overflow. ");
+                            index = 5;
+                            hlw8032_row_data.Voltage = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                            index = 11;
+                            hlw8032_row_data.Current = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                            index = 17;
+                            hlw8032_row_data.Power = hlw8032_uint8_2_uint32(row_data[index + 0], row_data[index + 1], row_data[index + 2]);
+
+                            if (GET_BIT(hlw8032_row_data.State, 3))
+                            {
+                                ESP_LOGE("HLW8023 DATA VOERFLOW", "Voltage REG overflow. ");
+                            }
+                            if (GET_BIT(hlw8032_row_data.State, 2))
+                            {
+                                ESP_LOGE("HLW8023 DATA VOERFLOW", "Current REG overflow. ");
+                            }
+                            if (GET_BIT(hlw8032_row_data.State, 1))
+                            {
+                                ESP_LOGE("HLW8023 DATA VOERFLOW", "Power REG overflow. ");
+                            }
+                            if (GET_BIT(hlw8032_row_data.State, 0))
+                            {
+                                errorflag = true;
+                                ESP_LOGE("HLW8023 DATA ERROR", "Parameters REGs all error. ");
+                            }
                         }
-                        if (GET_BIT(hlw8032_row_data.State, 2))
+                        else
                         {
-                            ESP_LOGE("HLW8023 DATA VOERFLOW", "Current REG overflow. ");
+                            errorflag = true;
+                            ESP_LOGE("HLW8023 STATE REG ERROR", "The value of state REG is %#X. ", hlw8032_row_data.State);
                         }
-                        if (GET_BIT(hlw8032_row_data.State, 1))
-                        {
-                            ESP_LOGE("HLW8023 DATA VOERFLOW", "Power REG overflow. ");
-                        }
-                        if (GET_BIT(hlw8032_row_data.State, 0))
-                        {
-                            ESP_LOGE("HLW8023 DATA ERROR", "Parameters REGs all error. ");
-                        }
+                        break;
+                    }
+
+                    if (errorflag)
+                    {
+                        ElectricalParameter.VoltageRMS = -1;
+                        ElectricalParameter.CurrentRMS = -1;
+                        ElectricalParameter.ActivePower = -1;
+                        ElectricalParameter.ApparentPower = -1;
+                        ElectricalParameter.PowerFactor = -1;
                     }
                     else
                     {
-                        ESP_LOGE("HLW8023 STATE REG ERROR", "The value of state REG is %#X. ", hlw8032_row_data.State);
+                        if (GET_BIT(hlw8032_row_data.DataUpdata, 6))
+                        {
+                            ElectricalParameter.VoltageRMS = HLW8032_VOLTAGE_REG_PARAMETER * HLW8032_K_V / hlw8032_row_data.Voltage;
+                        }
+                        if (GET_BIT(hlw8032_row_data.DataUpdata, 5))
+                        {
+                            ElectricalParameter.CurrentRMS = HLW8032_CURRENT_REG_PARAMETER * HLW8032_K_I / hlw8032_row_data.Current;
+                        }
+                        if (GET_BIT(hlw8032_row_data.DataUpdata, 4))
+                        {
+                            ElectricalParameter.ActivePower = HLW8032_POWER_REG_PARAMETER * HLW8032_K_P / hlw8032_row_data.Power;
+                        }
+
+                        ElectricalParameter.ApparentPower = ElectricalParameter.VoltageRMS * ElectricalParameter.CurrentRMS;
+
+                        if (ElectricalParameter.ApparentPower <= 0.0001)
+                        {
+                            ElectricalParameter.PowerFactor = 0;
+                        }
+                        else
+                        {
+                            ElectricalParameter.PowerFactor = ElectricalParameter.ActivePower / ElectricalParameter.ApparentPower;
+                        }
+                        EleSensorDataRefreshFlag = true;
                     }
-                    break;
                 }
             }
         }
     }
+    else
+    {
+        ElectricalParameter.VoltageRMS = 0;
+        ElectricalParameter.CurrentRMS = 0;
+        ElectricalParameter.ActivePower = 0;
+        ElectricalParameter.ApparentPower = 0;
+        ElectricalParameter.PowerFactor = 0;
+    }
+
+    ESP_LOGI("ElectricalParameter", "VoltageRMS    = %.2f. ", ElectricalParameter.VoltageRMS);
+    ESP_LOGI("ElectricalParameter", "CurrentRMS    = %.2f. ", ElectricalParameter.CurrentRMS);
+    ESP_LOGI("ElectricalParameter", "ActivePower   = %.2f. ", ElectricalParameter.ActivePower);
+    ESP_LOGI("ElectricalParameter", "ApparentPower = %.2f. ", ElectricalParameter.ApparentPower);
+    ESP_LOGI("ElectricalParameter", "PowerFactor   = %.2f. ", ElectricalParameter.PowerFactor);
+    ESP_LOGI("ElectricalParameter", "PF Counter    = %lu. ", pf_counter_isr);
 
     return ret;
 }
@@ -344,8 +394,13 @@ char *hlw8032_get_debugIfo(void)
     static char debugInfomotain[2048];
 
     // sprintf(debugInfomotain, "vol:%lu, Cur:%lu,Power:%lu.", hlw8032_row_data.Voltage, hlw8032_row_data.Current, hlw8032_row_data.Power);
-    sprintf(debugInfomotain, "vol:%lu\nCur:%lu\nPower:%lu\n vRMS:%.2f",
-            hlw8032_row_data.Voltage, hlw8032_row_data.Current, hlw8032_row_data.Power, ElectricalParameter.VoltageRMS);
+    sprintf(debugInfomotain, "V:%lu, I:%lu, P:%lu, PF:%lu. ## State=0x%X, DataUpdata=0x%X",
+            hlw8032_row_data.Voltage,
+            hlw8032_row_data.Current,
+            hlw8032_row_data.Power,
+            pf_counter_isr,
+            hlw8032_row_data.State,
+            hlw8032_row_data.DataUpdata);
 
     ESP_LOGI("debug", "%s", debugInfomotain);
 
