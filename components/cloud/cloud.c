@@ -63,6 +63,7 @@ void Task_Cloud(void *pvParameters)
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("apparent_power", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("power_factor", QCLOUD_VAL_TYPE_FLOAT));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property("Electricity_consumption", QCLOUD_VAL_TYPE_FLOAT));
+    ESP_ERROR_CHECK(esp_qcloud_device_add_property("debugIfo", QCLOUD_VAL_TYPE_STRING));
     /**< The processing function of the communication between the device and the server */
     // ESP_ERROR_CHECK(esp_qcloud_device_add_property_cb(light_get_param, light_set_param));
     ESP_ERROR_CHECK(esp_qcloud_device_add_property_cb(cloud_get_param, cloud_set_param));
@@ -178,25 +179,10 @@ static esp_err_t cloud_get_param(const char *id, esp_qcloud_param_val_t *val)
     {
         val->f = hlw8032_get_Electricity_consumption();
     }
-    /*
-    todo:
-    定义结构体 把要传递的数据用结构体包裹起来
-
-    队列邮箱
-
-    调用函数 直接读
-    */
-
-    // if (!strcmp(id, "power_switch")) {
-    //     val->b = lightbulb_get_switch();
-    // } else if (!strcmp(id, "value")) {
-    //     val->i = lightbulb_get_value();
-    // } else if (!strcmp(id, "hue")) {
-    //     val->i = lightbulb_get_hue();
-    // } else if (!strcmp(id, "saturation")) {
-    //     val->i = lightbulb_get_saturation();
-    // }
-
+    else if (!strcmp(id, "debugIfo"))
+    {
+        val->s = hlw8032_get_debugIfo();
+    }
     // ESP_LOGI("cloud", "Report id: %s, val: %d", id, val->i);
 
     return ESP_OK;
@@ -212,20 +198,6 @@ static esp_err_t cloud_set_param(const char *id, const esp_qcloud_param_val_t *v
     {
         err = relay_set_switch(val->b);
     }
-
-    //     err = lightbulb_set_switch(val->b);
-
-    // if (!strcmp(id, "power_switch")) {
-    //     err = lightbulb_set_switch(val->b);
-    // } else if (!strcmp(id, "value")) {
-    //     err = lightbulb_set_value(val->i);
-    // } else if (!strcmp(id, "hue")) {
-    //     err = lightbulb_set_hue(val->i);
-    // } else if (!strcmp(id, "saturation")) {
-    //     err = lightbulb_set_saturation(val->i);
-    // } else {
-    //     ESP_LOGW("cloud", "This parameter is not supported");
-    // }
 
     // /* Report driver changes to the cloud side */
     esp_qcloud_iothub_report_all_property();
