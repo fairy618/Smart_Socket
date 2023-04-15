@@ -14,6 +14,8 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
+#include "BasicDrive.h"
+
 #define GET_BIT(x, bit) ((x & (0x01 << bit)) >> bit) /* 获取第bit位 */
 
 #define GPIO_NUM_HLW8032_TX (GPIO_NUM_0)
@@ -39,9 +41,9 @@
 #define HLW8032_CURRENT_REG_PARAMETER (0x003E6C)
 #define HLW8032_POWER_REG_PARAMETER (0x4F1230)
 
-#define HLW8032_K1 (1.0f)
-#define HLW8032_K2 (2.0f)
-#define HLW8032_K3 (3.0f)
+#define HLW8032_K_V (1.960161f)
+#define HLW8032_K_I (1.021739021f)
+#define HLW8032_K_P (2.021356643f)
 
 #define HLW8032_UART_DATA_LEN (24)
 
