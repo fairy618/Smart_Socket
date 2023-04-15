@@ -43,6 +43,8 @@ typedef struct
     uint32_t blue;
 } rgb_data_t;
 
+extern bool RelayState;
+
 void Task_key(void *pvParameters);
 void Task_LED(void *pvParameters);
 // void Task_Relay(void *pvParameters);
