@@ -19,6 +19,8 @@
 #define GPIO_NUM_HLW8032_TX (GPIO_NUM_0)
 #define GPIO_NUM_HLW8032_PF (GPIO_NUM_1)
 
+#define ESP_INTR_FLAG_DEFAULT (0)
+
 #define UART_BUF_SIZE (1024)
 
 #define HLW8032_UART_BAUD_RATE (4800)
@@ -28,35 +30,39 @@
 #define HLW8032_UART_RTS (UART_PIN_NO_CHANGE)
 #define HLW8032_UART_CTS (UART_PIN_NO_CHANGE)
 
-#define HLW8032_VOLTAGE_COEF (1.88f)
-#define HLW8032_CURRENT_COFE (1.00f)
+// Non-isolated sampling
+// #define HLW8032_VOLTAGE_COEF (1.88f)
+// #define HLW8032_CURRENT_COFE (1.00f)
+
+// Isolated sampling
+#define HLW8032_VOLTAGE_REG_PARAMETER (0x02E6F8)
+#define HLW8032_CURRENT_REG_PARAMETER (0x003E6C)
+#define HLW8032_POWER_REG_PARAMETER (0x4F1230)
+
+#define HLW8032_K1 (1.0f)
+#define HLW8032_K2 (2.0f)
+#define HLW8032_K3 (3.0f)
 
 #define HLW8032_UART_DATA_LEN (24)
 
 typedef struct
 {
-    uint8_t State;
-    uint8_t Check;
-    uint32_t VoltageParameter;
-    uint32_t Voltage;
-    uint32_t CurrentParameter;
-    uint32_t Current;
-    uint32_t PowerParameter;
-    uint32_t Power;
-    uint8_t DataUpdata;
-    uint16_t PF_reg_value;
-    uint8_t CheckSum;
-    uint16_t PF_reverse_cnt;
+    uint8_t State;      // 状态寄存器
+    uint8_t Check;      // 检测寄存器
+    uint32_t Voltage;   // 电压寄存器
+    uint32_t Current;   // 电流寄存器
+    uint32_t Power;     // 功率寄存器
+    uint8_t DataUpdata; // 数据更新寄存器
+    uint8_t CheckSum;   // 包尾
 } HLW8032_data_t;
 
 typedef struct
 {
-    float VoltageRMS;
+    float VoltageRMS; // 电压 有效值
     float CurrentRMS;
     float ActivePower;
     float ApparentPower;
     float PowerFactor;
-    uint64_t PF_value;
     float ElectricityConsumption;
     bool flag;
 } ElectricalParameter_t;
@@ -68,4 +74,6 @@ float hlw8032_get_active_power(void);
 float hlw8032_get_apparent_power(void);
 float hlw8032_get_power_factor(void);
 float hlw8032_get_Electricity_consumption(void);
+char *hlw8032_get_debugIfo(void);
+
 #endif /*_DRIVER_HLW8032_H_*/
