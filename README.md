@@ -19,6 +19,7 @@ windows 快速入门教程[ESP32-C3 快速入门](https://docs.espressif.com/pro
 
 # 硬件
 
+硬件项目链接：[立创开源平台](https://oshwhub.com/thfairy/230416-wi-fi-zhi-neng-cha-zuo)
 
 # 项目结构  
  
