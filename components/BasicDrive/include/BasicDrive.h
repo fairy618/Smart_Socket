@@ -44,6 +44,7 @@ typedef struct
 } rgb_data_t;
 
 extern bool RelayState;
+extern bool SmartConfigFlag;
 
 void Task_key(void *pvParameters);
 void Task_LED(void *pvParameters);

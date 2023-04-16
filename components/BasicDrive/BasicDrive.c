@@ -4,6 +4,7 @@
 static uint8_t led_strip_pixels[RMT_LED_NUMBERS * 3];
 bool RelayState = 0;
 bool RelayStatusRefreshFlag = false;
+bool SmartConfigFlag = false;
 
 /*
  * @description: polling
@@ -52,6 +53,7 @@ void Task_key(void *pvParameters)
                 }
                 else
                 {
+                    SmartConfigFlag = true;
                     ESP_LOGI("TASK KEY", "Key is free after long press. ");
                 }
 
@@ -71,6 +73,7 @@ void Task_key(void *pvParameters)
                 else if (KeyValue == 2)
                 {
                     // reset device
+                    SmartConfigFlag = true;
                 }
                 KeyValue = 0;
             }
@@ -78,36 +81,6 @@ void Task_key(void *pvParameters)
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
-// /*
-//  * @description:
-//  * @param {void} *pvParameters
-//  * @return {*}
-//  */
-// void Task_Relay(void *pvParameters)
-// {
-//     bool HighWaterMark = 1;
-
-//     Relay_ledc_init();
-//     Relay_ledc_set_duty(0);
-
-//     while (1)
-//     {
-//         if (RelayState)
-//         {
-//             Relay_ledc_set_duty(80);
-//         }
-//         else
-//         {
-//             Relay_ledc_set_duty(0);
-//         }
-
-//         if (HighWaterMark)
-//         {
-//             HighWaterMark = 0;
-//             ESP_LOGI("RELAY HighWaterMark", "Stack`s free depth : %d/2048. ", uxTaskGetStackHighWaterMark(NULL));
-//         }
-//     }
-// }
 
 /*
  * @description: blink
@@ -117,8 +90,7 @@ void Task_key(void *pvParameters)
 void Task_LED(void *pvParameters)
 {
     bool HighWaterMark = 1;
-
-    int LedBlinkTime = *((int *)pvParameters);
+    int LedBlinkTime = 1000;
 
     gpio_reset_pin(GPIO_NUM_LED);
     gpio_set_direction(GPIO_NUM_LED, GPIO_MODE_OUTPUT);
